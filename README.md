@@ -63,9 +63,18 @@ ships.json：存储所有舰船数据，可手动编辑或通过程序修改。
 ## 贡献指南
 欢迎任何形式的贡献！如果您有新的想法、发现了 Bug 或想改进代码，请：
 Fork 本仓库。
-创建您的特性分支 (git checkout -b feature/AmazingFeature)。
-提交您的更改 (git commit -m 'Add some AmazingFeature')。
-推送到分支 (git push origin feature/AmazingFeature)。
+创建您的特性分支
+```
+git checkout -b feature/AmazingFeature
+```
+提交您的更改
+```
+git commit -m 'Add some AmazingFeature
+```
+推送到分支
+```
+git push origin feature/AmazingFeature
+```
 打开一个 Pull Request。
 请尽量确保代码风格与现有代码一致，并适当添加注释。
 
