@@ -194,15 +194,15 @@ class AddShipDialog(QDialog):
         form_points.setContentsMargins(0, 0, 0, 0)
 
         # 获得
-        obtain_container, self.tech_points_obtain = self.create_spin_with_buttons(min_val=0, max_val=20, suffix=" 点")
+        obtain_container, self.tech_points_obtain = self.create_spin_with_buttons(min_val=0, max_val=50, suffix=" 点")
         #points_layout.addRow("获得:", obtain_container)
 
         # 满破
-        max_container, self.tech_points_max = self.create_spin_with_buttons(min_val=0, max_val=20, suffix=" 点")
+        max_container, self.tech_points_max = self.create_spin_with_buttons(min_val=0, max_val=50, suffix=" 点")
         #points_layout.addRow("满破:", max_container)
 
         # 120级
-        level120_container, self.tech_points_120 = self.create_spin_with_buttons(min_val=0, max_val=20, suffix=" 点")
+        level120_container, self.tech_points_120 = self.create_spin_with_buttons(min_val=0, max_val=50, suffix=" 点")
         #points_layout.addRow("120级:", level120_container)
         form_points.addRow("获得:", obtain_container)
         form_points.addRow("满破:", max_container)
@@ -385,7 +385,7 @@ class AddShipDialog(QDialog):
             "owned": False,
             "breakthrough": 0,
             "can_remodel": self.can_remodel_cb.isChecked(),
-            "remodel_date": self.remodel_date_edit.date().toString("yyyy-MM-dd"),
+            "remodel_date": remodel_date,
             "remodeled": False,
             "oath": False,
             "level_120": False,
