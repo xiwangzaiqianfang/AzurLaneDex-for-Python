@@ -2,12 +2,20 @@ QMainWindow {
     background-color: #f3f3f3;
 }
 
+QDialog {
+    background-color: #f3f3f3;
+}
+
+QWidget#detailWidget {
+    background-color: #f3f3f3;
+}
+
 QTableWidget {
-    background-color: white;
     alternate-background-color: #f9f9f9;
     selection-background-color: #0067c0;
     selection-color: white;
     gridline-color: #e0e0e0;
+    color: #333;
 }
 
 QTableWidget::item:selected {
@@ -19,11 +27,13 @@ QHeaderView::section {
     padding: 4px;
     border: none;
     font-weight: bold;
+    color: #333;
 }
 
 QPushButton {
     border-radius: 4px;
     padding: 6px 12px;
+    color: white;
     background-color: #0067c0;
     color: white;
     border: none;
@@ -36,11 +46,17 @@ QPushButton:pressed {
     background-color: #3183ca;
 }
 
+QPushButton:disabled {
+    background-color: #9b9b9b;
+    color: #ffffff;
+}
+
 QComboBox, QSpinBox, QLineEdit {
     border-radius: 4px;
     padding: 4px;
     border: 1px solid #aaa;
     color: #333;
+    background-color: white;
 }
 
 QComboBox:hover, QSpinBox:hover, QLineEdit:hover {
@@ -56,6 +72,9 @@ QComboBox QAbstractItemView {
     background-color: #f9f9f9;
     outline: none;
     padding: 4px 0;
+    selection-background-color: #e0e0e0;
+    selection-color: #333;
+    color: #333;
 }
 QComboBox QAbstractItemView::item {
     padding: 6px 12px;
@@ -71,6 +90,7 @@ QComboBox QAbstractItemView::item:hover {
 
 QCheckBox {
     spacing: 5px;
+    color: #000000;
 }
 
 QGroupBox {
@@ -79,6 +99,7 @@ QGroupBox {
     border-radius: 5px;
     margin-top: 10px;
     padding-top: 10px;
+    color: #333;
 }
 
 QGroupBox::title {
@@ -89,11 +110,6 @@ QGroupBox::title {
 
 QLabel {
     color: #333;
-}
-
-QScrollArea {
-    border: none;
-    background: transparent;
 }
 
 /* QToolButton 仿 WinUI3 DropDownButton */
@@ -188,6 +204,7 @@ QLabel#cardTitle {
     color: #333;
     padding-bottom: 5px;
     border-bottom: 1px solid #e0e0e0;  /* 可选：添加分隔线 */
+    margin-bottom: 5px;
 }
 
 /* 高级筛选面板 */
@@ -206,4 +223,9 @@ QLabel#panelTitle {
     padding-bottom: 8px;
     border-bottom: 1px solid #e0e0e0;
     margin-bottom: 8px;
+}
+
+QScrollArea {
+    border: none;
+    background: transparent;
 }

@@ -2,7 +2,7 @@ import sys
 import os
 from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                                 QSplitter, QMessageBox, QFileDialog, QApplication, QPushButton, QDialog, QLabel)
-from PySide6.QtCore import Qt, QSettings, QPoint, QPropertyAnimation, QEasingCurve, Signal, QUrl
+from PySide6.QtCore import Qt, QSettings, QPoint, QPropertyAnimation, QEasingCurve, Signal, QUrl, QTimer
 from PySide6.QtGui import QFont, QIcon, QPainter, QBrush, QPen, QColor, QLinearGradient, QPalette, QPixmap, QDesktopServices
 
 import ctypes
@@ -19,7 +19,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("碧蓝航线本地图鉴")
-        self.resize(1375, 700)
+        self.resize(1300, 700)
         self.setMinimumWidth(800)
 
         # 移除默认标题栏
@@ -124,7 +124,7 @@ class MainWindow(QMainWindow):
         self.splitter.addWidget(self.detail_widget)
 
         # 设置初始比例
-        self.splitter.setSizes([325, 1030])
+        self.splitter.setSizes([400, 900])
         #self.splitter.setHandleWidth(int)
         self.splitter.setChildrenCollapsible(False)
         self.splitter.setStretchFactor(0, 0)
@@ -142,6 +142,9 @@ class MainWindow(QMainWindow):
         self.filter_bar.import_clicked.connect(self.import_data)
         self.filter_bar.update_online_clicked.connect(self.update_online)
         self.filter_bar.sort_order_changed.connect(self.on_sort_order_changed)
+        self.filter_bar.batch_operation_signal.connect(self.batch_operation)
+
+        self.filter_bar.main_window = self
 
         self.ship_list.current_ship_changed.connect(self.on_ship_selected)
         self.ship_list.sort_requested.connect(self.on_sort_requested)
@@ -161,9 +164,36 @@ class MainWindow(QMainWindow):
         ship_names = [ship.name for ship in self.manager.ships]
         self.filter_bar.set_ship_names(ship_names)
 
-
-        # 加载主题
-        self.load_theme()
+        #self.system_follow = (self.manager.config.get("theme_mode", "system") == "system")
+        theme_mode = self.manager.config.get("theme_mode", "system")
+        self.system_follow = (theme_mode == "system")
+        if self.system_follow:
+            app = QApplication.instance()
+            if hasattr(app.styleHints(), 'colorScheme'):
+                current_scheme = app.styleHints().colorScheme()
+                if current_scheme == Qt.ColorScheme.Dark:
+                    self.manager.current_theme = "dark"
+                else:
+                    self.manager.current_theme = "light"
+            else:
+                # 对于 Qt < 6.5，需要其他方法获取，例如读取注册表
+                import winreg
+                try:
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                     r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+                    value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+                    winreg.CloseKey(key)
+                    self.manager.current_theme = "dark" if value == 0 else "light"
+                except:
+                    self.manager.current_theme = "light"  # 默认
+            self.load_theme()
+        else:
+            self.manager.current_theme = theme_mode
+            self.load_theme()
+        #self.current_manual_theme = self.manager.config.get("manual_theme", "light")
+        #self.apply_theme()
+        #self.load_theme()
+        self.setup_theme_monitor()
 
         # 初始加载全部舰船
         self.apply_filter({})
@@ -177,7 +207,9 @@ class MainWindow(QMainWindow):
         
     def load_theme(self):
         """加载保存的主题，并将样式表应用到整个应用"""
-        theme = self.settings.value("theme", "light")  # 默认浅色
+        #theme = self.settings.value("theme", "light")  # 默认浅色
+        theme = self.manager.current_theme
+        #print(f"应用主题: {theme}")
         style_file = f"style_{theme}.qss"
         # 获取当前文件所在目录的绝对路径
         base_dir = os.path.dirname(__file__)
@@ -185,10 +217,18 @@ class MainWindow(QMainWindow):
         #print(f"Loading theme: {theme}, path: {style_path}") #1
         if os.path.exists(style_path):
             with open(style_path, "r", encoding='utf-8') as f:
-                #qss = f.read() #2
+                qss = f.read() #2
                 #print(f"QSS content length: {len(qss)}") #3
                 #print(f"QSS preview: {qss[:200]}") #4
                 QApplication.instance().setStyleSheet(f.read())
+            app = QApplication.instance()
+            app.setStyleSheet(qss)
+                # 强制所有顶级窗口重新应用样式
+            for widget in app.topLevelWidgets():
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                widget.update()
+                app.processEvents()
         else:
             print(f"样式文件不存在: {style_path}")
 
@@ -218,7 +258,7 @@ class MainWindow(QMainWindow):
         self.apply_filter({})
 
     def on_ship_selected(self, ship):
-        print(f"on_ship_selected: ship = {ship}")
+        #print(f"on_ship_selected: ship = {ship}")
         if ship:
             self.detail_widget.set_ship(ship)
         else:
@@ -233,6 +273,7 @@ class MainWindow(QMainWindow):
         self.manager.save()
         # 刷新左侧列表显示
         self.ship_list.update_ship(ship)
+        self.apply_filter(self.filter_bar.get_criteria())
         if self.ship_list.currentRow() >= 0 and self.ship_list.current_ships[self.ship_list.currentRow()].id == ship.id:
             self.detail_widget.set_ship(ship)
         #if ship:
@@ -381,10 +422,10 @@ class MainWindow(QMainWindow):
         super().showEvent(event)
 
     def get_current_ship(self):
-        print("====DEBUG====")
-        print("main_window.get_current_ship 被调用")
+        #print("====DEBUG====")
+        #print("main_window.get_current_ship 被调用")
         ship = self.ship_list.get_current_ship()
-        print(f"从 ship_list 获取到的 ship: {ship}")
+        #print(f"从 ship_list 获取到的 ship: {ship}")
         return ship
 
     def on_sort_order_changed(self, key, reverse):
@@ -395,6 +436,175 @@ class MainWindow(QMainWindow):
         self.ship_list.set_ships(sorted_ships)
         # 注意：由于排序改变了列表顺序，但筛选条件未变，我们不需要重新应用筛选。
         # 同时，当前选中的船可能改变，但 set_ships 会自动选中第一行。
+
+    def batch_operation(self, op, criteria):
+        # 优先获取勾选的舰船ID
+        checked_ids = self.ship_list.get_checked_ship_ids()
+        if checked_ids:
+            # 根据ID获取对应的Ship对象
+            ships_to_modify = [ship for ship in self.manager.ships if ship.id in checked_ids]
+            source_desc = f"勾选的 {len(ships_to_modify)} 艘舰船"
+        else:
+            # 根据筛选条件获取需要修改的舰船列表
+            ships_to_modify = self.manager.filter(criteria)   # 注意：filter 返回的是符合条件的船列表
+            source_desc = f"筛选条件下的 {len(ships_to_modify)} 艘舰船"
+        if not ships_to_modify:
+            QMessageBox.information(self, "提示", "当前筛选条件下没有舰船。")
+            return
+        
+        op_desc = {
+            "owned_true": "设为已获得",
+            "owned_false": "设为未获得",
+            "oath_true": "设为誓约",
+            "oath_false": "取消誓约",
+            "max_true": "设为满破",
+            "max_false": "取消满破",
+            "120_true": "设为120级",
+            "120_false": "取消120级",
+            "remodeled_true": "设为已改造",
+            "remodeled_false": "取消改造",
+        }.get(op, op)
+
+        # 确认对话框
+        reply = QMessageBox.question(self, "批量操作确认",
+                                     f"将对 {len(ships_to_modify)} 艘舰船执行操作：{op}。是否继续？",
+                                     QMessageBox.Yes | QMessageBox.No)
+        if reply == QMessageBox.No:
+            return
+
+        # 执行修改
+        modified_count = 0
+        for ship in ships_to_modify:
+            if op == "owned_true":
+                ship.owned = True
+                modified_count += 1
+            elif op == "owned_false":
+                ship.owned = False
+                # 如果取消拥有，同时清空其他状态（可选）
+                ship.breakthrough = 0
+                ship.oath = False
+                ship.level_120 = False
+                ship.remodeled = False
+                modified_count += 1
+            elif op == "oath_true":
+                ship.oath = True
+                modified_count += 1
+            elif op == "oath_false":
+                ship.oath = False
+                modified_count += 1
+            elif op == "max_true":
+                ship.breakthrough = 3
+                modified_count += 1
+            elif op == "max_false":
+                ship.breakthrough = 0
+                modified_count += 1
+            elif op == "120_true":
+                ship.level_120 = True
+                modified_count += 1
+            elif op == "120_false":
+                ship.level_120 = False
+                modified_count += 1
+            elif op == "remodeled_true":
+                if ship.can_remodel:
+                    ship.remodeled = True
+                    modified_count += 1
+                else:
+                    pass
+            elif op == "remodeled_false":
+                ship.remodeled = False
+                modified_count += 1
+
+        self.manager.save()
+        if checked_ids:
+            self.ship_list.clear_checks()
+        # 刷新界面：重新应用筛选（列表更新）并刷新详情页
+        self.apply_filter(self.filter_bar.get_criteria())
+        QMessageBox.information(self, "完成", f"已批量修改 {len(ships_to_modify)} 艘舰船。")
+
+    def setup_theme_monitor(self):
+        if hasattr(QApplication.instance().styleHints(), 'colorSchemeChanged'):
+            # Qt 6.5+ 支持信号
+            QApplication.instance().styleHints().colorSchemeChanged.connect(self.on_system_theme_changed)
+        else:
+            # 低版本 Qt，使用定时器轮询（简单实现）
+            self.theme_timer = QTimer(self)
+            self.theme_timer.timeout.connect(self.check_system_theme)
+            self.theme_timer.start(2000)
+
+    def check_system_theme(self):
+        # 简化：读取注册表或判断 Windows 10/11 当前主题
+        # 这里用简单方法：判断默认系统颜色，假设 Windows 10/11 深色模式注册表路径
+        import winreg
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                 r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+            value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+            winreg.CloseKey(key)
+            system_dark = (value == 0)
+        except:
+            system_dark = False
+        if self.system_follow:
+            new_theme = "dark" if system_dark else "light"
+            if new_theme != self.manager.version_theme:
+                self.manager.version_theme = new_theme
+                self.load_theme()
+
+    def on_system_theme_changed(self, color_scheme):
+        if self.system_follow:
+            new_theme = "dark" if color_scheme == Qt.ColorScheme.Dark else "light"
+            if new_theme != self.manager.current_theme:
+                print(f"[主题] 系统主题变化，新主题: {new_theme}")
+                self.manager.current_theme = new_theme
+                self.load_theme()
+
+    def set_system_theme_follow(self, follow):
+        print(f"[主题] 跟随系统主题: {follow}")
+        self.system_follow = follow
+        if follow:
+            # 立即根据当前系统主题切换
+            app = QApplication.instance()
+            if hasattr(app.styleHints(), 'colorScheme'):
+                current_scheme = app.styleHints().colorScheme()
+                new_theme = "dark" if current_scheme == Qt.ColorScheme.Dark else "light"
+                self.manager.current_theme = new_theme
+                self.load_theme()
+            else:
+                # 低版本 Qt 可读取注册表等
+                # 这里简单默认浅色
+                self.manager.current_theme = "light"
+                self.load_theme()
+            #self.on_system_theme_changed(QApplication.instance().styleHints().colorScheme())
+        #else:
+            # 手动模式，直接使用上次手动设置的主题
+            #self.load_theme()
+
+    def set_manual_theme(self, theme):
+        print(f"[主题] 手动设置主题为: {theme}")
+        self.system_follow = False
+        self.manager.current_theme = theme
+        #self.manager.config["manual_theme"] = theme
+        #self.manager.save_config()
+        self.load_theme()
+
+    def open_settings(self):
+        from gui.settings_dialog import SettingsDialog
+        dlg = SettingsDialog(self.manager, self)
+        dlg.exec()
+
+    def reset_window_geometry(self):
+        """清除保存的窗口几何信息，并重置当前窗口到默认大小"""
+        # 删除保存的几何信息
+        self.settings.remove("window_geometry")
+        # 重置当前窗口大小（默认 1200x800）
+        self.resize(1300, 700)
+        # 将窗口移动到屏幕中央
+        self.center()
+
+    def center(self):
+        """将窗口移动到屏幕中央"""
+        from PySide6.QtWidgets import QApplication
+        screen = QApplication.primaryScreen().geometry()
+        self.move(screen.center() - self.rect().center())
 
     #def resizeEvent(self, event):
     #    super().resizeEvent(event)

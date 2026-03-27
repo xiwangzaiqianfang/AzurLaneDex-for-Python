@@ -18,10 +18,12 @@ class FilterBar(QWidget):
     fleet_tech_clicked = Signal()
     theme_toggled = Signal()
     sort_order_changed = Signal(str, bool)
+    batch_operation_signal = Signal(str, dict)   # (operation, criteria)
 
     def __init__(self):
         super().__init__()
         self.manager = None
+        self.main_window = None
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(5, 5, 5, 5)
         main_layout.setSpacing(5)
@@ -91,6 +93,58 @@ class FilterBar(QWidget):
         self.reset_btn.clicked.connect(self.reset_clicked)
         row1.addWidget(self.reset_btn)
 
+        self.batch_btn = QToolButton()
+        self.batch_btn.setText("批量操作")
+        self.batch_btn.setPopupMode(QToolButton.InstantPopup)
+        batch_menu = QMenu(self)
+        self.batch_btn.setMenu(batch_menu)
+
+        # 添加菜单项
+        action_set_owned_true = QAction("设为已获得", self)
+        action_set_owned_true.triggered.connect(self.batch_set_owned_true)
+        batch_menu.addAction(action_set_owned_true)
+
+        action_set_owned_false = QAction("设为未获得", self)
+        action_set_owned_false.triggered.connect(self.batch_set_owned_false)
+        batch_menu.addAction(action_set_owned_false)
+
+        action_set_oath_true = QAction("设为誓约", self)
+        action_set_oath_true.triggered.connect(self.batch_set_oath_true)
+        batch_menu.addAction(action_set_oath_true)
+
+        action_set_oath_false = QAction("取消誓约", self)
+        action_set_oath_false.triggered.connect(self.batch_set_oath_false)
+        batch_menu.addAction(action_set_oath_false)
+
+        # 满破（突破数=3）
+        action_set_max_true = QAction("设为满破", self)
+        action_set_max_true.triggered.connect(self.batch_set_max_true)
+        batch_menu.addAction(action_set_max_true)
+
+        action_set_max_false = QAction("取消满破", self)
+        action_set_max_false.triggered.connect(self.batch_set_max_false)
+        batch_menu.addAction(action_set_max_false)
+
+        # 120级
+        action_set_120_true = QAction("设为120级", self)
+        action_set_120_true.triggered.connect(self.batch_set_120_true)
+        batch_menu.addAction(action_set_120_true)
+
+        action_set_120_false = QAction("取消120级", self)
+        action_set_120_false.triggered.connect(self.batch_set_120_false)
+        batch_menu.addAction(action_set_120_false)
+
+        # 改造（仅对可改造船有效，但批量时直接设置）
+        action_set_remodeled_true = QAction("设为已改造", self)
+        action_set_remodeled_true.triggered.connect(self.batch_set_remodeled_true)
+        batch_menu.addAction(action_set_remodeled_true)
+
+        action_set_remodeled_false = QAction("取消改造", self)
+        action_set_remodeled_false.triggered.connect(self.batch_set_remodeled_false)
+        batch_menu.addAction(action_set_remodeled_false)
+
+        row1.addWidget(self.batch_btn)
+
         self.stat_btn = QPushButton("一键统计")
         self.stat_btn.clicked.connect(self.stat_clicked)
         row1.addWidget(self.stat_btn)
@@ -122,9 +176,13 @@ class FilterBar(QWidget):
         action_switch_file.triggered.connect(self.switch_file_clicked.emit)
         menu.addAction(action_switch_file)
 
-        action_set_edit_pwd = QAction("设置编辑密码", self)
-        action_set_edit_pwd.triggered.connect(self.set_edit_password)
-        menu.addAction(action_set_edit_pwd)
+        action_settings = QAction("设置", self)
+        action_settings.triggered.connect(self.open_settings)
+        menu.addAction(action_settings)
+
+        #action_set_edit_pwd = QAction("设置编辑密码", self)
+        #action_set_edit_pwd.triggered.connect(self.set_edit_password)
+        #menu.addAction(action_set_edit_pwd)
 
         action_export = QAction("导出数据", self)
         action_export.triggered.connect(self.export_clicked.emit)
@@ -134,13 +192,13 @@ class FilterBar(QWidget):
         action_import.triggered.connect(self.import_clicked.emit)
         menu.addAction(action_import)
 
-        action_update = QAction("网络更新", self)
-        action_update.triggered.connect(self.update_online_clicked.emit)
-        menu.addAction(action_update)
+        #action_update = QAction("网络更新", self)
+        #action_update.triggered.connect(self.update_online_clicked.emit)
+        #menu.addAction(action_update)
 
-        action_theme = QAction("切换主题", self)
-        action_theme.triggered.connect(self.theme_toggled.emit)
-        menu.addAction(action_theme)
+        #action_theme = QAction("切换主题", self)
+        #action_theme.triggered.connect(self.theme_toggled.emit)
+        #menu.addAction(action_theme)
 
         row1.addWidget(self.more_btn)
 
@@ -368,6 +426,43 @@ class FilterBar(QWidget):
             else:
                 QMessageBox.information(self, "完成", "编辑密码已清除。")
 
+    def open_settings(self):
+        if self.main_window:
+            self.main_window.open_settings()
+        else:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "错误", "无法打开设置页面。")
+
+    def batch_set_owned_true(self):
+        self.batch_operation_signal.emit("owned_true", self.get_criteria())
+
+    def batch_set_owned_false(self):
+        self.batch_operation_signal.emit("owned_false", self.get_criteria())
+
+    def batch_set_oath_true(self):
+        self.batch_operation_signal.emit("oath_true", self.get_criteria())
+
+    def batch_set_oath_false(self):
+        self.batch_operation_signal.emit("oath_false", self.get_criteria())
+
+    def batch_set_max_true(self):
+        self.batch_operation_signal.emit("max_true", self.get_criteria())
+
+    def batch_set_max_false(self):
+        self.batch_operation_signal.emit("max_false", self.get_criteria())
+
+    def batch_set_120_true(self):
+        self.batch_operation_signal.emit("120_true", self.get_criteria())
+
+    def batch_set_120_false(self):
+        self.batch_operation_signal.emit("120_false", self.get_criteria())
+
+    def batch_set_remodeled_true(self):
+        self.batch_operation_signal.emit("remodeled_true", self.get_criteria())
+
+    def batch_set_remodeled_false(self):
+        self.batch_operation_signal.emit("remodeled_false", self.get_criteria())
+    
     #def on_more_menu_shown(self):
     #    self.more_btn.setText(self.base_text + " ")
 

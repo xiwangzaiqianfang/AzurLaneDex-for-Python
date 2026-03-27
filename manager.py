@@ -24,8 +24,18 @@ class ShipManager:
         self.filepath = filepath
         self.config_file = "config.json"
         self.config = self.load_config()
-        self.version = "0.0"
+        self.version = "0.9.5"
         self.ships: list[Ship] = []
+        theme_mode = self.config.get("theme_mode", "system")
+        if theme_mode == "system":
+            self.current_theme = "light"
+        #elif self.current_theme == "light":
+        #   self.current_theme = "light"
+        #elif self.current_theme == "dark":
+        #   self.current_theme = "dark"
+        else:
+            self.current_theme = theme_mode
+        #   self.current_theme = "light"
         self.load()
 
     def load(self):
@@ -696,3 +706,15 @@ class ShipManager:
         except Exception as e:
             print(f"获取版本失败: {e}")
         return None
+    
+    def get_program_version(self):
+        """读取程序版本号"""
+        version_file = os.path.join(os.path.dirname(self.filepath), "version.json")
+        if os.path.exists(version_file):
+            try:
+                with open(version_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    return data.get("version", "1.0.0")
+            except:
+                return "1.0.0"
+        return "1.0.0"

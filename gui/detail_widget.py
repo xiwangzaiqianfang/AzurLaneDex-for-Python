@@ -254,9 +254,9 @@ class DetailWidget(QWidget):
         layout.addStretch()
 
     def set_ship(self, ship):
-        print(f"set_ship called with {ship}")
+        #print(f"set_ship called with {ship}")
         self.current_ship = ship
-        print(f"current_ship {ship}")
+        #print(f"current_ship {ship}")
         self.update_display()
 
     def clear(self):
@@ -291,7 +291,7 @@ class DetailWidget(QWidget):
         if not self.current_ship:
             return
         s = self.current_ship
-        print(f"update_display: ship {s.id}, owned={s.owned}, oath={s.oath}, level120={s.level_120}, bt={s.breakthrough}")
+        #print(f"update_display: ship {s.id}, owned={s.owned}, oath={s.oath}, level120={s.level_120}, bt={s.breakthrough}")
 
         # 设置值
         self.id_label.setText(str(s.id))

@@ -1,20 +1,18 @@
-/* 深色主题 - 基于浅色样式转换，保留滚动条默认 */
 QMainWindow {
     background-color: #1e1e1e;
 }
 
 QTableWidget {
-    background-color: #252525;
     alternate-background-color: #2d2d2d;
     selection-background-color: #42a1d2;
-    selection-color: dark;
+    selection-color: #252525;
     gridline-color: #3a3a3a;
     color: #f0f0f0;
 }
 
 QTableWidget::item:selected {
     background-color: #42a1d2;
-    color: dark;
+    color: #252525;
 }
 
 QHeaderView::section {
@@ -29,17 +27,22 @@ QPushButton {
     border-radius: 4px;
     padding: 6px 12px;
     background-color: #4cc2ff;
-    color: dark;
+    color: #252525;
     border: none;
     font-weight: 500;
 }
 QPushButton:hover {
     background-color: #47b1e8;
-    color: dark;
+    color: #252525;
 }
 QPushButton:pressed {
     background-color: #42a1d2;
-    color: dark;
+    color: #252525;
+}
+
+QPushButton:disabled {
+    background-color: #717171;
+    color: #ffffff;
 }
 
 QComboBox, QSpinBox, QLineEdit {
@@ -52,7 +55,7 @@ QComboBox, QSpinBox, QLineEdit {
 
 QComboBox:hover, QSpinBox:hover, QLineEdit:hover {
     border-color: #47b1e8;
-    color: dark;
+    color: #f0f0f0;
 }
 
 /* QComboBox 下拉菜单 */
@@ -71,7 +74,7 @@ QComboBox QAbstractItemView::item {
 }
 QComboBox QAbstractItemView::item:selected {
     background-color: #404040;
-    color: white;
+    color: #ffffff;
 }
 QComboBox QAbstractItemView::item:hover {
     background-color: #505050;
@@ -109,7 +112,7 @@ QScrollArea {
 /* QToolButton 仿 WinUI3 DropDownButton */
 QToolButton {
     background-color: #4cc2ff;
-    color: dark;
+    color: #252525;
     border: none;
     padding: 5px 20px 5px 15px;
     border-radius: 3px;
@@ -117,11 +120,11 @@ QToolButton {
 }
 QToolButton:hover {
     background-color: #47b1e8;
-    color: dark;
+    color: #252525;
 }
 QToolButton:pressed {
     background-color: #42a1d2;
-    color: dark;
+    color: #252525;
 }
 QToolButton::menu-indicator {
     width: 22px;
@@ -144,7 +147,7 @@ QMenu::item {
 }
 QMenu::item:selected {
     background-color: #404040;
-    color: white;
+    color: #ffffff;
 }
 QMenu::item:pressed {
     background-color: #505050;
@@ -161,7 +164,7 @@ QCompleter QAbstractItemView::item {
 }
 QCompleter QAbstractItemView::item:selected {
     background-color: #42a1d2;
-    color: dark;
+    color: #252525;
 }
 
 /* 详情页卡片样式（深色） */
