@@ -35,7 +35,7 @@ def main():
             font.setFamilies(["Microsoft YaHei", "SimHei", "Source Han Sans SC", "Arial"])
             font.setPointSize(10)
             app.setFont(font)
-            
+
     #app.setStyle("Fusion")
     window = MainWindow()
     window.show()

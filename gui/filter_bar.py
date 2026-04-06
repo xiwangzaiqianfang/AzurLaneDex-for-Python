@@ -34,13 +34,15 @@ class FilterBar(QWidget):
         # 阵营
         row1.addWidget(QLabel("阵营:"))
         self.faction_combo = QComboBox()
-        self.faction_combo.addItems(["全部", "白鹰", "皇家", "重樱", "铁血", "东煌", "撒丁", "北方联合", "鸢尾", "维希教廷", "META", "其他"])
+        self.faction_combo.wheelEvent = lambda event: None
+        self.faction_combo.addItems(["全部", "白鹰", "皇家", "重樱", "铁血", "东煌", "撒丁帝国", "北方联合", "自由鸢尾", "维希教廷", "META", "其他"])
         self.faction_combo.currentTextChanged.connect(self.on_filter_changed)
         row1.addWidget(self.faction_combo)
 
         # 舰种
         row1.addWidget(QLabel("舰种:"))
         self.class_combo = QComboBox()
+        self.class_combo.wheelEvent = lambda event: None
         self.class_combo.addItems(["全部", "驱逐", "轻巡", "重巡", "超巡", "战巡", "战列", "航母", "轻航", "航战", "重炮", "维修", "潜艇", "潜母", "其他"])
         self.class_combo.currentTextChanged.connect(self.on_filter_changed)
         row1.addWidget(self.class_combo)
@@ -48,12 +50,14 @@ class FilterBar(QWidget):
         # 稀有度
         row1.addWidget(QLabel("稀有度:"))
         self.rarity_combo = QComboBox()
+        self.rarity_combo.wheelEvent = lambda event: None
         self.rarity_combo.addItems(["全部", "普通", "稀有", "精锐", "超稀有", "海上传奇"])
         self.rarity_combo.currentTextChanged.connect(self.on_filter_changed)
         row1.addWidget(self.rarity_combo)
 
         # 排序方式
         self.sort_combo = QComboBox()
+        self.sort_combo.wheelEvent = lambda event: None
         self.sort_combo.addItems(["按编号", "按名称", "按稀有度", "按誓约", "按图鉴顺序", "按实装时间"])
         self.sort_combo.currentIndexChanged.connect(self.on_sort_changed)
         row1.addWidget(QLabel("排序:"))
@@ -145,14 +149,6 @@ class FilterBar(QWidget):
 
         row1.addWidget(self.batch_btn)
 
-        self.stat_btn = QPushButton("一键统计")
-        self.stat_btn.clicked.connect(self.stat_clicked)
-        row1.addWidget(self.stat_btn)
-
-        self.fleet_tech_btn = QPushButton("舰队科技")
-        self.fleet_tech_btn.clicked.connect(self.fleet_tech_clicked.emit)
-        row1.addWidget(self.fleet_tech_btn)
-
         # 创建“更多操作”按钮
         #self.base_text = "更多操作"
         self.more_btn = QToolButton()
@@ -176,13 +172,6 @@ class FilterBar(QWidget):
         action_switch_file.triggered.connect(self.switch_file_clicked.emit)
         menu.addAction(action_switch_file)
 
-        action_settings = QAction("设置", self)
-        action_settings.triggered.connect(self.open_settings)
-        menu.addAction(action_settings)
-
-        #action_set_edit_pwd = QAction("设置编辑密码", self)
-        #action_set_edit_pwd.triggered.connect(self.set_edit_password)
-        #menu.addAction(action_set_edit_pwd)
 
         action_export = QAction("导出数据", self)
         action_export.triggered.connect(self.export_clicked.emit)
@@ -192,86 +181,12 @@ class FilterBar(QWidget):
         action_import.triggered.connect(self.import_clicked.emit)
         menu.addAction(action_import)
 
-        #action_update = QAction("网络更新", self)
-        #action_update.triggered.connect(self.update_online_clicked.emit)
-        #menu.addAction(action_update)
-
-        #action_theme = QAction("切换主题", self)
-        #action_theme.triggered.connect(self.theme_toggled.emit)
-        #menu.addAction(action_theme)
-
         row1.addWidget(self.more_btn)
 
         row1.addStretch()
         main_layout.addLayout(row1)
 
         self.adv_panel = None
-
-        # 高级筛选选项（初始隐藏）
-        #self.adv_widget = QWidget()
-        #adv_layout = QHBoxLayout(self.adv_widget)
-        #adv_layout.setContentsMargins(0, 0, 0, 0)
-
-        # 复选框
-        #self.owned_cb = QCheckBox("已获得")
-        #self.owned_cb.stateChanged.connect(self.on_filter_changed)
-        #self.not_owned_cb = QCheckBox("未获得")
-        #row1.addWidget(self.oath_cb)
-
-        #self.remodel_cb = QCheckBox("可改造")
-        #self.remodel_cb.stateChanged.connect(self.on_filter_changed)
-        #row1.addWidget(self.remodel_cb)
-
-        #self.remodeled_cb = QCheckBox("已改造")
-        #self.remodeled_cb.stateChanged.connect(self.on_filter_changed)
-        #row1.addWidget(self.remodeled_cb)
-        #self.can_remodel_not_cb = QCheckBox("未改造")
-
-        #self.oath_cb = QCheckBox("已誓约")
-        #self.oath_cb.stateChanged.connect(self.on_filter_changed)
-        #row1.addWidget(self.oath_cb)
-
-        #self.max_cb = QCheckBox("已满破")
-        #self.max_cb.stateChanged.connect(self.on_filter_changed)
-        #row1.addWidget(self.max_cb)
-        #self.not_max_cb = QCheckBox("未满破")
-
-        #self.level120_cb = QCheckBox("120级")
-        #self.level120_cb.stateChanged.connect(self.on_filter_changed)
-        #self.not_level120_cb = QCheckBox("未120级")
-        #row1.addWidget(self.level120_cb)
-
-        #for cb in [self.not_owned_cb, self.not_max_cb, self.not_level120_cb, self.can_remodel_not_cb]:
-        #    cb.stateChanged.connect(self.on_filter_changed)
-        #    adv_layout.addWidget(cb)
-        #adv_layout.addStretch()
-        #self.adv_widget.setVisible(False)  # 初始隐藏
-        #main_layout.addWidget(self.adv_widget)
-
-        # 加载自定义字体
-        #font_path = os.path.join(os.path.dirname(__file__), "..", "fonts", "Segoe Fluent Icons.ttf")
-        #print("尝试加载字体:", os.path.abspath(font_path))  # 添加调试打印
-        #font_id = QFontDatabase.addApplicationFont(font_path)
-        #print("搜索icon字体ID:", font_id)
-        #if font_id != -1:
-        #    font_families = QFontDatabase.applicationFontFamilies(font_id)
-        #    print("字体族:", font_families)
-        #    if font_families:
-        #        icon_font_family = font_families[0]
-        #    else:
-        #        icon_font_family = "Segoe MDL2 Assets"  # 回退
-        #else:
-        #    icon_font_family = "Segoe MDL2 Assets"  # 加载失败时回退
-        
-
-        #print("复选框互斥状态：")
-        #for cb in [self.remodel_cb, self.oath_cb, self.owned_cb, self.max_cb, self.level120_cb]:
-        # print(f"{cb.text()}: autoExclusive={cb.autoExclusive()}")
-
-    #def toggle_advanced(self, checked):
-    #    """展开/收起高级筛选"""
-    #    self.adv_widget.setVisible(checked)
-    #    self.adv_btn.setText("高级筛选 ▲" if checked else "高级筛选 ▼")
 
     def toggle_advanced_panel(self):
         if self.adv_panel is None:
@@ -299,16 +214,6 @@ class FilterBar(QWidget):
             criteria['ship_class'] = self.class_combo.currentText()
         if self.rarity_combo.currentText() != "全部":
             criteria['rarity'] = self.rarity_combo.currentText()
-        #if self.remodel_cb.isChecked():
-        #    criteria['can_remodel'] = True
-        #if self.oath_cb.isChecked():
-        #    criteria['oath'] = True
-        #if self.owned_cb.isChecked():
-        #    criteria['owned'] = True
-        #if self.max_cb.isChecked():
-        #    criteria['max_breakthrough'] = True
-        #if self.level120_cb.isChecked():
-        #    criteria['level_120'] = True
         self.filter_changed.emit(criteria)
 
     def reset(self):
@@ -352,27 +257,6 @@ class FilterBar(QWidget):
             criteria['ship_class'] = self.class_combo.currentText()
         if self.rarity_combo.currentText() != "全部":
             criteria['rarity'] = self.rarity_combo.currentText()
-        #if self.remodel_cb.isChecked():
-        #    criteria['can_remodel'] = True
-        #if self.remodeled_cb.isChecked():
-        #    criteria['remodeled'] = True
-        #if self.oath_cb.isChecked():
-        #    criteria['oath'] = True
-        #if self.owned_cb.isChecked():
-        #    criteria['owned'] = True
-        #if self.max_cb.isChecked():
-        #    criteria['max_breakthrough'] = True
-        #if self.level120_cb.isChecked():
-        #    criteria['level_120'] = True
-        #if self.not_owned_cb.isChecked():
-        #    criteria['not_owned'] = True
-        #if self.not_max_cb.isChecked():
-        #    criteria['not_max'] = True
-        #if self.not_level120_cb.isChecked():
-        #    criteria['not_level120'] = True
-        #if self.can_remodel_not_cb.isChecked():
-        #    criteria['can_remodel_not'] = True
-        #print("基础条件返回:", criteria)
         return criteria
     
     def set_ship_names(self, names):
@@ -400,6 +284,7 @@ class FilterBar(QWidget):
             5: "release_date"
         }
         key = key_map.get(index, "id")
+        self.sort_reverse_btn.setText("▲" if reverse else "▼")
         self.sort_order_changed.emit(key, reverse)
 
     def set_edit_password(self):
@@ -462,9 +347,3 @@ class FilterBar(QWidget):
 
     def batch_set_remodeled_false(self):
         self.batch_operation_signal.emit("remodeled_false", self.get_criteria())
-    
-    #def on_more_menu_shown(self):
-    #    self.more_btn.setText(self.base_text + " ")
-
-    #def on_more_menu_hidden(self):
-    #    self.more_btn.setText(self.base_text + " ")

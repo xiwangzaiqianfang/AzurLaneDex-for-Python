@@ -10,16 +10,9 @@ QWidget#detailWidget {
     background-color: #f3f3f3;
 }
 
-QTableWidget {
-    alternate-background-color: #f9f9f9;
-    selection-background-color: #0067c0;
-    selection-color: white;
-    gridline-color: #e0e0e0;
-    color: #333;
-}
-
 QTableWidget::item:selected {
     background-color: #3183ca;
+    color: #ffffff;
 }
 
 QHeaderView::section {
@@ -33,9 +26,8 @@ QHeaderView::section {
 QPushButton {
     border-radius: 4px;
     padding: 6px 12px;
-    color: white;
+    color: #ffffff;
     background-color: #0067c0;
-    color: white;
     border: none;
     font-weight: 500;
 }
@@ -61,6 +53,7 @@ QComboBox, QSpinBox, QLineEdit {
 
 QComboBox:hover, QSpinBox:hover, QLineEdit:hover {
     border-color: #1975c5;
+    color: #333;
 }
 
 /* QComboBox 下拉菜单 */
@@ -82,15 +75,16 @@ QComboBox QAbstractItemView::item {
 }
 QComboBox QAbstractItemView::item:selected {
     background-color: #3183ca;
-    color: #000;
+    color: #ffffff;
 }
 QComboBox QAbstractItemView::item:hover {
     background-color: #f0f0f0;
+    color: #333;
 }
 
 QCheckBox {
     spacing: 5px;
-    color: #000000;
+
 }
 
 QGroupBox {
@@ -115,12 +109,13 @@ QLabel {
 /* QToolButton 仿 WinUI3 DropDownButton */
 QToolButton {
     background-color: #0067c0;
-    color: white;
+    color: #ffffff;
     border: none;
-    padding: 5px 20px 5px 15px;  /* 右侧留出箭头空间 */
-    border-radius: 3px;
+    padding: 4.5px 20px 4.5px 15px;  /* 右侧留出箭头空间 */
+    border-radius: 4px;
     font-weight: 500;
 }
+
 QToolButton:hover {
     background-color: #1975c5;
 }
@@ -228,4 +223,25 @@ QLabel#panelTitle {
 QScrollArea {
     border: none;
     background: transparent;
+}
+
+/* 侧边栏列表样式 */
+QListWidget {
+    background-color: transparent;
+    border: none;
+    outline: none;
+}
+QListWidget::item {
+    padding: 8px;
+    margin: 2px 4px;
+    border-radius: 6px;
+    color: #333;
+    border-bottom: 1px solid #e0e0e0;
+}
+QListWidget::item:selected {
+    background-color: #3183ca;
+    color: white;
+}
+QListWidget::item:hover:!selected {
+    background-color: #f3f3f3;
 }

@@ -8,6 +8,7 @@ import datetime
 from models import Ship
 from typing import Optional
 from dataclasses import asdict
+from PySide6.QtCore import QObject, Signal
 
 SALT = "AzurLaneDex_Salt_2025"
 
@@ -17,10 +18,12 @@ def hash_password(password: str) -> str:
         return ""
     return hashlib.sha256((password + SALT).encode()).hexdigest()
 
-class ShipManager:
+class ShipManager(QObject):
+    data_changed = Signal()
     REQUIRED_FIELDS = set(Ship.__dataclass_fields__.keys())
 
     def __init__(self, filepath="ships.json"):
+        super().__init__()
         self.filepath = filepath
         self.config_file = "config.json"
         self.config = self.load_config()
@@ -231,12 +234,15 @@ class ShipManager:
             with open(temp_file, 'w', encoding='utf-8') as f:
                 json.dump(data_to_save, f, ensure_ascii=False, indent=2)
             os.replace(temp_file, self.filepath)
+            self.data_changed.emit()
             print(f"[保存成功] {self.filepath} 版本 {self.version}，舰船数 {len(self.ships)}")
         except Exception as e:
             print(f"[保存失败] {e}")
             if os.path.exists(temp_file):
                 os.remove(temp_file)
             raise
+
+        self.data_changed.emit()
 
 
     def _create_sample_data(self):

@@ -18,6 +18,7 @@ class ShipListWidget(QTableWidget):
         self.horizontalHeader().setSectionResizeMode(4, QHeaderView.Fixed)
         self.horizontalHeader().setSectionResizeMode(5, QHeaderView.Fixed)
         self.horizontalHeader().setStretchLastSection(False)
+        self.horizontalHeader().setSectionsClickable(False)
         self.setColumnWidth(0, 30)
         self.setColumnWidth(1, 50)
         #self.setColumnWidth(2, 150)
