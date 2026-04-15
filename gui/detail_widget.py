@@ -349,7 +349,8 @@ class DetailWidget(QWidget):
 
         # 已改造：仅当已获得且可改造时启用
         self.remodeled_cb.setEnabled(owned and can_remodel)
-        self.special_gear_obtained_cb.setEnabled(owned and can_special_gear)
+        #self.special_gear_obtained_cb.setEnabled(owned and can_special_gear)
+        self.special_gear_obtained_cb.setEnabled(s.can_special_gear)
 
         if s.remodel_date:
             self.remodel_date_label.setText(f"{s.remodel_date}")
@@ -434,6 +435,10 @@ class DetailWidget(QWidget):
     def on_owned_clicked(self, checked):
         if not self.current_ship:
             return
+        s = self.current_ship
+        for attr in ['owned', 'oath', 'level_120', 'remodeled', 'can_remodel', 'can_special_gear', 'special_gear_obtained', 'is_permanent']:
+            if hasattr(s, attr) and isinstance(getattr(s, attr), str):
+                setattr(s, attr, getattr(s, attr).lower() == 'true')
         #print(f"on_owned_clicked: ship {self.current_ship.id}, checked={checked}")
         self.current_ship.owned = checked
         if not checked:  # 取消拥有时清零突破

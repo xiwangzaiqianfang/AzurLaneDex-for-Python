@@ -52,85 +52,109 @@ class ShipManager(QObject):
         try:
             with open(self.filepath, 'r', encoding='utf-8') as f:
                 raw_data = json.load(f)
-
-            print(f"[DEBUG] 原始数据类型: {type(raw_data)}")
-            if isinstance(raw_data, dict):
-                print(f"[DEBUG] 字典键: {list(raw_data.keys())}")
-
-                # 兼容旧版本：如果 data 是列表，则包装成新格式
-                if isinstance(raw_data, dict) and "version" in raw_data and "ships" in raw_data:
-                    self.version = raw_data.get("version", "0.0")
-                    ships_data = raw_data["ships"]
-                    print(f"[DEBUG] 新版格式，version={self.version}, ships_data 类型={type(ships_data)}")
-                elif isinstance(raw_data, list):
-                    # 旧版格式：直接是数组
-                    self.version = "0.0"
-                    ships_data = raw_data
-                    print(f"[DEBUG] 旧版格式，直接数组，长度={len(ships_data)}")
-                else:
-                    # 未知格式，尝试补救
-                    print("[ERROR] 无法识别的数据格式，将重置为空")
-                    self.version = "0.0"
-                    ships_data = []
-
-                # 确保 ships_data 是列表
-            if not isinstance(ships_data, list):
-                ships_data = []  # 如果意外不是列表，重置为空
-
-            ship_fields = set(Ship.__dataclass_fields__.keys())
-            migrated = []
-
-            for item in ships_data:
-                # 旧数据迁移：如果存在旧式单字段科技点，将其转换为三阶段字段
-                #self._migrate_old_tech_fields(item)
-                if not isinstance(item, dict):
-                    print(f"警告: 遇到非字典数据，已跳过: {item}")
-                    continue
-                
-                # 补全所有缺失字段
-                for field in ship_fields:
-                    if field not in item:
-                        default_val = Ship.__dataclass_fields__[field].default
-                        if default_val is dataclasses._MISSING_TYPE:
-                            # 必需字段缺失，根据类型设置合理的默认值
-                            field_type = Ship.__dataclass_fields__[field].type
-                            if field_type == int:
-                                item[field] = 0          # 例如 id 默认 0
-                            elif field_type == str:
-                                item[field] = ""          # 名称等默认空字符串
-                            elif field_type == bool:
-                                item[field] = False
-                            elif field_type == list:
-                                item[field] = []           # drop_locations 等列表
-                            else:
-                                item[field] = None
-                        else:
-                            item[field] = default_val  
-
-                # 处理 drop_locations 字符串转列表
-                if isinstance(item.get('drop_locations'), str):
-                    item['drop_locations'] = item['drop_locations'].split(';') if item['drop_locations'] else []
-
-                # 仅保留合法字段
-                filtered_item = {k: v for k, v in item.items() if k in ship_fields}
-                migrated.append(filtered_item)
-
-
-            # 转换为 Ship 对象
-            self.ships = [Ship.from_dict(item) for item in migrated]
-            print(f"[INFO] 成功加载 {len(self.ships)} 条舰船，版本 {self.version}")
-            #self.version = version   # 可以在类中保存版本号
-
-            self._auto_assign_game_order()
-            
-            # 如果检测到旧格式，立即保存为新格式（可选）
-            #if isinstance(data, list):
-            #    self.save()   # 这会以新格式保存
-            
-
         except json.JSONDecodeError as e:
-            raise Exception(f"JSON 文件损坏: {e}\n请使用在线校验工具修复或恢复备份。")
-        
+            raise Exception(f"JSON 文件损坏: {e}")
+
+        print(f"[DEBUG] 原始数据类型: {type(raw_data)}")
+        if isinstance(raw_data, dict):
+            print(f"[DEBUG] 字典键: {list(raw_data.keys())}")
+
+            # 兼容旧版本：如果 data 是列表，则包装成新格式
+            if isinstance(raw_data, dict) and "version" in raw_data and "ships" in raw_data:
+                self.version = raw_data.get("version", "0.0")
+                ships_data = raw_data["ships"]
+                print(f"[DEBUG] 新版格式，version={self.version}, ships_data 类型={type(ships_data)}")
+            elif isinstance(raw_data, list):
+                # 旧版格式：直接是数组
+                self.version = "0.0"
+                ships_data = raw_data
+                print(f"[DEBUG] 旧版格式，直接数组，长度={len(ships_data)}")
+            else:
+                # 未知格式，尝试补救
+                print("[ERROR] 无法识别的数据格式，将重置为空")
+                self.version = "0.0"
+                ships_data = []
+
+        # 确保 ships_data 是列表
+        if not isinstance(ships_data, list):
+            ships_data = []  # 如果意外不是列表，重置为空
+
+        ship_fields = set(Ship.__dataclass_fields__.keys())
+        migrated = []
+
+        for item in ships_data:
+            # 旧数据迁移：如果存在旧式单字段科技点，将其转换为三阶段字段
+            #self._migrate_old_tech_fields(item)
+            if not isinstance(item, dict):
+                print(f"警告: 遇到非字典数据，已跳过: {item}")
+                continue
+                
+            # 补全所有缺失字段
+            for field in ship_fields:
+                if field not in item:
+                    default_val = Ship.__dataclass_fields__[field].default
+                    if default_val is dataclasses._MISSING_TYPE:
+                        # 必需字段缺失，根据类型设置合理的默认值
+                        field_type = Ship.__dataclass_fields__[field].type
+                        if field_type == int:
+                            item[field] = 0          # 例如 id 默认 0
+                        elif field_type == str:
+                            item[field] = ""          # 名称等默认空字符串
+                        elif field_type == bool:
+                            item[field] = False
+                        elif field_type == list:
+                            item[field] = []           # drop_locations 等列表
+                        else:
+                            item[field] = None
+                    else:
+                        item[field] = default_val  
+
+            # 处理 drop_locations 字符串转列表
+            if isinstance(item.get('drop_locations'), str):
+                item['drop_locations'] = item['drop_locations'].split(';') if item['drop_locations'] else []
+
+            # 仅保留合法字段
+            filtered_item = {k: v for k, v in item.items() if k in ship_fields}
+            migrated.append(filtered_item)
+
+
+        # 转换为 Ship 对象
+        self.ships = [Ship.from_dict(item) for item in migrated]
+        print(f"[INFO] 成功加载 {len(self.ships)} 条舰船，版本 {self.version}")
+        #self.version = version   # 可以在类中保存版本号
+        for ship in self.ships:
+        # 修复布尔字段
+            for field_name, field_info in Ship.__dataclass_fields__.items():
+                value = getattr(ship, field_name)
+                field_type = field_info.type
+    
+                # 修复布尔字段
+                if field_type == bool and isinstance(value, str):
+                    setattr(ship, field_name, value.lower() == 'true')
+                # 修复整数字段
+                elif field_type == int and isinstance(value, str):
+                    try:
+                        setattr(ship, field_name, int(value))
+                    except:
+                        setattr(ship, field_name, 0)
+                # 修复列表字段（可选）
+                elif field_type == list and isinstance(value, str):
+                    # 如果字符串是 JSON 数组格式，解析它
+                    if value.startswith('[') and value.endswith(']'):
+                        try:
+                            setattr(ship, field_name, json.loads(value))
+                        except:
+                            setattr(ship, field_name, [])
+                    else:
+                        setattr(ship, field_name, [])
+                elif field_type == str and not isinstance(value, str):
+                    setattr(ship, field_name, str(value) if value is not None else "")
+        self._auto_assign_game_order()
+            
+        #如果检测到旧格式，立即保存为新格式（可选）
+        if isinstance(raw_data, list):
+            self.save()   # 这会以新格式保存
+                    
     def load_config(self):
         if os.path.exists(self.config_file):
             try:
@@ -304,12 +328,71 @@ class ShipManager(QObject):
         for field, value in criteria.items():
             if value is None or value == "":
                 continue
-            if field == "faction":
-                result = [s for s in result if s.faction == value]
-            elif field == "ship_class":
-                result = [s for s in result if s.ship_class == value]
+            if field == "ship_class":
+                if isinstance(value, list):
+                    # 处理特殊索引 "前排先锋"、"后排主力" 等
+                    new_result = []
+                    for ship in result:
+                        for cls in value:
+                            if self._match_ship_class(ship, cls):
+                                new_result.append(ship)
+                                break
+                    result = new_result
+                else:
+                    result = [s for s in result if s.ship_class == value]
+            # 阵营（多选）
+            elif field == "faction":
+                if isinstance(value, list):
+                    result = [s for s in result if s.faction in value]
+                else:
+                    result = [s for s in result if s.faction == value]
+            # 稀有度（多选）
             elif field == "rarity":
-                result = [s for s in result if s.rarity == value]
+                if isinstance(value, list):
+                    result = [s for s in result if s.rarity in value]
+                else:
+                    result = [s for s in result if s.rarity == value]
+            # 附加状态
+            elif field == "can_remodel" and value:
+                result = [s for s in result if s.can_remodel]
+            elif field == "can_remodel_not" and value:
+                result = [s for s in result if s.can_remodel and not s.remodeled]
+            elif field == "remodeled" and value:
+                result = [s for s in result if s.remodeled]
+            elif field == "max_breakthrough" and value:
+                result = [s for s in result if s.is_max_breakthrough()]
+            elif field == "not_max" and value:
+                result = [s for s in result if s.owned and not s.is_max_breakthrough()]
+            elif field == "level_120" and value:
+                result = [s for s in result if s.level_120]
+            elif field == "not_level120" and value:
+                result = [s for s in result if s.owned and not s.level_120]
+            elif field == "is_special" and value:
+                result = [s for s in result if "μ" in s.name or "（μ" in s.name or s.name.startswith("小")]
+            elif field == "can_special_gear" and value:
+                result = [s for s in result if s.can_special_gear]
+            elif field == "can_special_gear_not_obtained" and value:
+                result = [s for s in result if s.can_special_gear and not s.special_gear_obtained]
+            elif field == "special_gear_obtained" and value:
+                result = [s for s in result if s.special_gear_obtained]
+            elif field == "not_oath" and value:
+                result = [s for s in result if not s.oath]
+            elif field == "oath" and value:
+                result = [s for s in result if s.oath]
+            elif field == "is_permanent" and value:
+                result = [s for s in result if s.is_permanent]
+            elif field == "not_permanent" and value:
+                result = [s for s in result if not s.is_permanent]
+            # 属性加成（筛选出拥有任意一项选中属性的船）
+            elif field == "attributes" and isinstance(value, list):
+                new_result = []
+                for ship in result:
+                    for attr in value:
+                        # 根据属性名获取对应的科技点数值（获得+120级）
+                        if self._has_attr_bonus(ship, attr):
+                            new_result.append(ship)
+                            break
+                result = new_result
             elif field == "can_remodel" and value:
                 result = [s for s in result if s.can_remodel]
             elif field == "remodeled" and value:
@@ -322,8 +405,14 @@ class ShipManager(QObject):
                 result = [s for s in result if s.is_max_breakthrough()]
             elif field == "level_120" and value:
                 result = [s for s in result if s.level_120]
+            elif field == "not_level120" and value:
+                result = [s for s in result if not s.level_120]
+            elif field == "is_special" and value:
+                # 判断是否为μ兵装或小船
+                result = [s for s in result if ("μ" in s.name or "（μ" in s.name or s.name.startswith("小"))]
             elif field == "name_contains" and value:
-                result = [s for s in result if value.lower() in s.name.lower()]
+                lower_value = value.lower()
+                result = [s for s in result if lower_value in s.name.lower() or (s.special_gear_name and lower_value in s.special_gear_name.lower())]
             elif field == "not_owned" and value:
                 result = [s for s in result if not s.owned]
             elif field == "not_max" and value:
@@ -339,6 +428,51 @@ class ShipManager(QObject):
             elif field == "special_gear_not_obtained" and value:
                 result = [s for s in result if s.owned and s.can_special_gear and not s.special_gear_obtained]
         return result
+
+    def _match_index(self, ship, index):
+        """根据索引名称判断舰船是否匹配"""
+        if index == "前排先锋":
+            return ship.ship_class in ["驱逐", "轻巡", "重巡", "超巡", "重炮", "维修"]
+        elif index == "后排主力":
+            return ship.ship_class in ["战列", "战巡", "航战", "航母", "轻航"]
+        elif index == "驱逐":
+            return ship.ship_class == "驱逐"
+        elif index == "轻巡":
+            return ship.ship_class == "轻巡"
+        elif index == "重巡":
+            return ship.ship_class in ["重巡", "超巡"]
+        elif index == "战列":
+            return ship.ship_class in ["战列", "战巡", "航战"]
+        elif index == "航母":
+            return ship.ship_class in ["航母", "轻航"]
+        elif index == "维修":
+            return ship.ship_class == "维修"
+        elif index == "潜艇":
+            return ship.ship_class in ["潜艇", "潜母"]
+        elif index == "其他":
+            # 其他未分类的舰种，例如运输、风帆等
+            other_classes = ["运输", "风帆"]
+            return ship.ship_class in other_classes
+        return False
+    
+    def _has_attr_bonus(self, ship, attr):
+        """检查舰船是否拥有指定属性加成（获得+120级）"""
+        attr_map = {
+            "炮击": "firepower",
+            "航空": "aviation",
+            "机动": "mobility",
+            "防空": "aa",
+            "雷击": "torpedo",
+            "装填": "reload",
+            "耐久": "durability",
+            "反潜": "antisub"
+        }
+        base = attr_map.get(attr)
+        if not base:
+            return False
+        obtain = getattr(ship, f"tech_{base}_obtain", 0)
+        val120 = getattr(ship, f"tech_{base}_120", 0)
+        return (obtain + val120) > 0
 
     def sort(self, ships: list[Ship], key: str, reverse: bool = False) -> list[Ship]:
         if key == "id":
@@ -361,8 +495,24 @@ class ShipManager(QObject):
                     return "9999-99-99"  # 极大字符串
                 return date
             return sorted(ships, key=date_key, reverse=reverse)
+        elif key == "remodel_date":
+            def remodel_key(s):
+                return s.remodel_date if s.remodel_date else "9999-99-99"
+            return sorted(ships, key=remodel_key, reverse=reverse)
+        elif key == "oath":
+            return sorted(ships, key=lambda s: s.oath, reverse=reverse)
         elif key == "level_120":
             return sorted(ships, key=lambda s: s.level_120, reverse=reverse)
+        elif key == "total_attr_bonus":
+            # 按属性加成总和排序（所有科技点获得+120级之和）
+            def total_attr(s):
+                total = 0
+                for base in ["durability", "firepower", "torpedo", "aa", "aviation",
+                             "accuracy", "reload", "mobility", "antisub"]:
+                    total += getattr(s, f"tech_{base}_obtain", 0)
+                    total += getattr(s, f"tech_{base}_120", 0)
+                return total
+            return sorted(ships, key=total_attr, reverse=reverse)
         return ships
     
     def calculate_fleet_tech(self):
@@ -420,8 +570,10 @@ class ShipManager(QObject):
                 faction = ship.faction
                 if faction not in camp_tech:
                     camp_tech[faction] = {'obtain': 0, 'max': 0, 'level120': 0}
-                    camp_tech[faction]['obtain'] += ship.tech_points_obtain
+                camp_tech[faction]['obtain'] += ship.tech_points_obtain
+                if ship.is_max_breakthrough():
                     camp_tech[faction]['max'] += ship.tech_points_max
+                if ship.level_120:
                     camp_tech[faction]['level120'] += ship.tech_points_120
         return camp_tech
     
@@ -445,12 +597,19 @@ class ShipManager(QObject):
             ]:
                 # 获得时加成
                 obtain = getattr(ship, f"tech_{base_key}_obtain", 0)
+                val_120 = getattr(ship, f"tech_{base_key}_120", 0)
+                # 强制转换
+                try:
+                    obtain = int(obtain)
+                    val_120 = int(val_120)
+                except:
+                    obtain = 0
+                    val_120 = 0
                 if obtain != 0:
                     for sc in affects:
                         key = (sc, base_display)
                         bonuses[key] = bonuses.get(key, 0) + obtain
                 # 120级加成
-                val_120 = getattr(ship, f"tech_{base_key}_120", 0)
                 if val_120 != 0:
                     for sc in affects:
                         key = (sc, base_display)
@@ -663,8 +822,21 @@ class ShipManager(QObject):
 
     def export_csv(self, path):
         import pandas as pd
-        df = pd.DataFrame([s.to_dict() for s in self.ships])
-        df.to_csv(path, index=False, encoding='utf-8-sig')
+        # 将每个 ship 的复杂字段转换为 JSON 字符串，避免 pandas 生成 NaN
+        export_data = []
+        for ship in self.ships:
+            d = ship.to_dict()
+            # 将列表和字典字段转为 JSON 字符串
+            for field in ['drop_locations', 'tech_affects', 'bonus_obtain', 'bonus_120']:
+                if field in d:
+                    d[field] = json.dumps(d[field], ensure_ascii=False)
+            # 将日期字段空值转为空字符串
+            for field in ['remodel_date', 'release_date', 'special_gear_date']:
+                if d.get(field) is None:
+                    d[field] = ""
+            export_data.append(d)
+        df = pd.DataFrame(export_data)
+        df.to_csv(path, index=False, encoding='utf-8-sig', quoting=1)
 
     def export_excel(self, path):
         import pandas as pd
@@ -673,14 +845,129 @@ class ShipManager(QObject):
 
     def import_csv(self, path):
         import pandas as pd
-        df = pd.read_csv(path, encoding='utf-8-sig')
+        import ast
+        import dataclasses
+        from models import Ship
+
+        try:
+            # 读取 CSV，指定所有列为字符串类型，避免 pandas 自动转换
+            df = pd.read_csv(path, dtype=str, keep_default_na=False, na_values=[''], encoding='utf-8-sig')
+        except Exception as e:
+            raise Exception(f"CSV 文件读取失败: {e}")
+
         ships = []
-        for _, row in df.iterrows():
+        required_fields = self.REQUIRED_FIELDS
+
+        for idx, row in df.iterrows():
             data = row.to_dict()
-            for field in self.REQUIRED_FIELDS:
-                if field not in data:
-                    data[field] = Ship.__dataclass_fields__[field].default
-            ships.append(Ship.from_dict(data))
+            data = {k.strip(): v for k, v in data.items()}
+            # 1. 修复版本号：如果 CSV 中的 version 列存在，但不应覆盖 ships.json 的版本号，我们忽略它。
+            # 实际导入时，版本号保持原 manager 的版本，不依赖 CSV。
+
+            # 2. 处理特殊字段：列表、字典、日期等
+            for field in required_fields:
+                if field not in data or data[field] in (None, "", "nan", "NaN", "null"):
+                    default = Ship.__dataclass_fields__[field].default
+                    if default is dataclasses._MISSING_TYPE:
+                        field_type = Ship.__dataclass_fields__[field].type
+                        if field_type == int:
+                            data[field] = 0
+                        elif field_type == str:
+                            data[field] = ""
+                        elif field_type == bool:
+                            data[field] = False
+                        elif field_type == list:
+                            data[field] = []
+                        elif field_type == dict:
+                            data[field] = {}
+                        else:
+                            data[field] = None
+                    else:
+                        data[field] = default
+                    continue
+
+                val = data[field]
+                
+                if field in ('drop_locations', 'tech_affects'):
+                    if isinstance(val, str):
+                        # 尝试 JSON 解析
+                        try:
+                            parsed = json.loads(val)
+                            data[field] = parsed if isinstance(parsed, list) else []
+                        except:
+                            # 尝试 Python 字面量解析（如 "['a','b']"）
+                            try:
+                                parsed = ast.literal_eval(val)
+                                data[field] = parsed if isinstance(parsed, list) else []
+                            except:
+                                # 最后尝试按逗号分割（如果看起来像列表）
+                                if val.startswith('[') and val.endswith(']'):
+                                    data[field] = [s.strip() for s in val[1:-1].split(',') if s.strip()]
+                                else:
+                                    data[field] = []
+                    else:
+                        data[field] = val if isinstance(val, list) else []
+
+                # 字典字段
+                elif field in ('bonus_obtain', 'bonus_120'):
+                    if isinstance(val, str):
+                        try:
+                            parsed = json.loads(val)
+                            data[field] = parsed if isinstance(parsed, dict) else {}
+                        except:
+                            try:
+                                parsed = ast.literal_eval(val)
+                                data[field] = parsed if isinstance(parsed, dict) else {}
+                            except:
+                                data[field] = {}
+                    else:
+                        data[field] = val if isinstance(val, dict) else {}
+
+                # 布尔字段
+                elif field in ('owned', 'remodeled', 'oath', 'level_120', 'can_remodel',
+                               'can_special_gear', 'special_gear_obtained', 'is_permanent'):
+                    if isinstance(val, bool):
+                        data[field] = val
+                    else:
+                        # 将字符串 "True"/"true"/"1" 转为 True，其余为 False
+                        data[field] = val.lower() in ('true', '1', 'yes')
+                
+                # 整数字段（包括 id, game_order, breakthrough, tech_points_* 以及所有 tech_*_obtain 等，但这里只列出一部分，其他会在循环外处理？）
+                elif field in ('id', 'game_order', 'breakthrough',
+                            'tech_points_obtain', 'tech_points_max', 'tech_points_120'):
+                    try:
+                        data[field] = int(float(val))
+                    except:
+                        data[field] = 0
+
+                # 日期字段（保持字符串）
+                elif field in ('remodel_date', 'release_date', 'special_gear_date'):
+                    data[field] = str(val) if val else ""
+
+                # 其他字符串字段
+                else:
+                    data[field] = str(val)
+
+            # 额外处理：所有 tech_xxx_obtain, tech_xxx_max, tech_xxx_120 字段（属性加成）
+            # 这些字段的数量很多，我们动态检测并转换为整数
+            for key in list(data.keys()):
+                if key.startswith('tech_') and (key.endswith('_obtain') or key.endswith('_max') or key.endswith('_120')):
+                    try:
+                        data[key] = int(float(data[key]))
+                    except:
+                        data[key] = 0
+
+            # 过滤出合法字段（只保留 Ship 类中定义的字段）
+            filtered_item = {k: v for k, v in data.items() if k in required_fields}
+            try:
+                ship = Ship.from_dict(filtered_item)
+                ships.append(ship)
+            except Exception as e:
+                print(f"警告: 第 {idx+2} 行数据转换失败，已跳过: {e}")
+                continue
+
+        if not ships:
+            raise Exception("CSV 文件中没有有效的舰船数据")
         self.ships = ships
         self.save()
 
@@ -836,3 +1123,65 @@ class ShipManager(QObject):
             except:
                 return "0.0.0"
         return "0.0.0"
+    
+    def _match_ship_class(self, ship, cls):
+        """根据舰种分类匹配"""
+        if cls == "前排先锋":
+            return ship.ship_class in ["驱逐", "轻巡", "重巡", "超巡", "重炮", "维修"]
+        elif cls == "后排主力":
+            return ship.ship_class in ["战列", "战巡", "航战", "航母", "轻航"]
+        elif cls == "驱逐":
+            return ship.ship_class == "驱逐"
+        elif cls == "轻巡":
+            return ship.ship_class == "轻巡"
+        elif cls == "重巡":
+            return ship.ship_class in ["重巡", "超巡"]
+        elif cls == "战列":
+            return ship.ship_class in ["战列", "战巡", "航战"]
+        elif cls == "航母":
+            return ship.ship_class in ["航母", "轻航"]
+        elif cls == "维修":
+            return ship.ship_class == "维修"
+        elif cls == "潜艇":
+            return ship.ship_class in ["潜艇", "潜母"]
+        elif cls == "其他":
+            return ship.ship_class in ["运输", "风帆", "工作舰"]
+        return False
+
+    def _has_attr_bonus(self, ship, attr):
+        """检查舰船是否拥有指定属性加成（获得+120级）"""
+        attr_map = {
+            "炮击": "firepower",
+            "航空": "aviation",
+            "机动": "mobility",
+            "防空": "aa",
+            "雷击": "torpedo",
+            "装填": "reload",
+            "耐久": "durability",
+            "反潜": "antisub"
+        }
+        base = attr_map.get(attr)
+        if not base:
+            return False
+        obtain = getattr(ship, f"tech_{base}_obtain", 0)
+        val120 = getattr(ship, f"tech_{base}_120", 0)
+        return (obtain + val120) > 0
+    
+    def get_total_tech_points(self):
+        """计算所有舰船（无论是否拥有）的科技点总和（获得+满破+120级）"""
+        total = 0
+        for ship in self.ships:
+            total += ship.tech_points_obtain + ship.tech_points_max + ship.tech_points_120
+        return total
+    
+    def get_owned_tech_points(self):
+        """计算已拥有舰船的科技点总和"""
+        total = 0
+        for ship in self.ships:
+            if ship.owned:
+                total += ship.tech_points_obtain
+                if ship.is_max_breakthrough():
+                    total += ship.tech_points_max
+                if ship.level_120:
+                    total += ship.tech_points_120
+        return total

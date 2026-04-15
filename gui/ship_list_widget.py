@@ -103,6 +103,8 @@ class ShipListWidget(QTableWidget):
                 # 更新表格显示
                 self.item(row, 1).setText(str(ship.id))
                 name_item = QTableWidgetItem(ship.name)
+                if ship.special_gear_name:
+                    name_item.setToolTip(f"特殊兵装: {ship.special_gear_name}")
                 name_item.setToolTip(ship.name)
                 self.setItem(row, 2, name_item)
                 self.item(row, 3).setText("✓" if ship.owned else "✗")

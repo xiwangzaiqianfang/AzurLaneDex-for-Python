@@ -1,10 +1,8 @@
-from PySide6.QtWidgets import (QWidget, QHBoxLayout, QComboBox, QCheckBox, QPushButton, QLabel, QLineEdit, QToolButton, QMenu, QStyle, QCompleter)
-from PySide6.QtCore import Signal, QStringListModel
-from PySide6.QtGui import QAction, QIcon, QFont, QFontDatabase, Qt
-import os
-import hashlib
-from manager import ShipManager
-from gui.advanced_filter_panel import AdvancedFilterPanel
+from PySide6.QtWidgets import (QWidget, QHBoxLayout, QComboBox, QPushButton,
+                               QLabel, QLineEdit, QMenu, QMessageBox,
+                               QInputDialog, QCompleter, QStyle, QToolButton)
+from PySide6.QtCore import Signal, QStringListModel, QStringListModel
+from PySide6.QtGui import QAction, Qt, QAction
 
 class FilterBar(QWidget):
     filter_changed = Signal(dict)
@@ -18,84 +16,52 @@ class FilterBar(QWidget):
     fleet_tech_clicked = Signal()
     theme_toggled = Signal()
     sort_order_changed = Signal(str, bool)
-    batch_operation_signal = Signal(str, dict)   # (operation, criteria)
+    batch_operation_signal = Signal(str, dict)
 
     def __init__(self):
         super().__init__()
-        self.manager = None
-        self.main_window = None
+        self.setObjectName("filterBar")
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.setSpacing(5)
 
-        # 常用按钮
-        row1 = QHBoxLayout()
-        row1.setSpacing(5)
-        # 阵营
-        row1.addWidget(QLabel("阵营:"))
-        self.faction_combo = QComboBox()
-        self.faction_combo.wheelEvent = lambda event: None
-        self.faction_combo.addItems(["全部", "白鹰", "皇家", "重樱", "铁血", "东煌", "撒丁帝国", "北方联合", "自由鸢尾", "维希教廷", "META", "其他"])
-        self.faction_combo.currentTextChanged.connect(self.on_filter_changed)
-        row1.addWidget(self.faction_combo)
-
-        # 舰种
-        row1.addWidget(QLabel("舰种:"))
-        self.class_combo = QComboBox()
-        self.class_combo.wheelEvent = lambda event: None
-        self.class_combo.addItems(["全部", "驱逐", "轻巡", "重巡", "超巡", "战巡", "战列", "航母", "轻航", "航战", "重炮", "维修", "潜艇", "潜母", "其他"])
-        self.class_combo.currentTextChanged.connect(self.on_filter_changed)
-        row1.addWidget(self.class_combo)
-
-        # 稀有度
-        row1.addWidget(QLabel("稀有度:"))
-        self.rarity_combo = QComboBox()
-        self.rarity_combo.wheelEvent = lambda event: None
-        self.rarity_combo.addItems(["全部", "普通", "稀有", "精锐", "超稀有", "海上传奇"])
-        self.rarity_combo.currentTextChanged.connect(self.on_filter_changed)
-        row1.addWidget(self.rarity_combo)
-
-        # 排序方式
+        # 排序选项
         self.sort_combo = QComboBox()
-        self.sort_combo.wheelEvent = lambda event: None
-        self.sort_combo.addItems(["按编号", "按名称", "按稀有度", "按誓约", "按图鉴顺序", "按实装时间"])
+        self.sort_combo.addItems([
+            "按编号排序", "按图鉴顺序排序", "按稀有度排序", "按名称排序",
+            "按实装时间排序", "按改造日期排序", "按誓约排序", "按属性加成值排序"
+        ])
         self.sort_combo.currentIndexChanged.connect(self.on_sort_changed)
-        row1.addWidget(QLabel("排序:"))
-        row1.addWidget(self.sort_combo)
+        main_layout.addWidget(QLabel("排序:"))
+        main_layout.addWidget(self.sort_combo)
 
-        # 升序/降序按钮
         self.sort_reverse_btn = QPushButton("▼")
-        self.sort_reverse_btn.setFixedSize(30, 25)
         self.sort_reverse_btn.setCheckable(True)
         self.sort_reverse_btn.clicked.connect(self.on_sort_changed)
-        row1.addWidget(self.sort_reverse_btn)
+        main_layout.addWidget(self.sort_reverse_btn)
 
+        # 筛选按钮
+        self.filter_btn = QPushButton("筛选")
+        self.filter_btn.clicked.connect(self.toggle_filter_panel)
+        main_layout.addWidget(self.filter_btn)
+        
+        # 搜索框
         self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("搜索舰船名...")
-        #icon_font = QFont(icon_font_family, 10)
-        self.completer = QCompleter()
-        self.completer.setCaseSensitivity(Qt.CaseInsensitive)          # 忽略大小写
-        self.completer.setFilterMode(Qt.MatchContains)                 # 包含匹配（可选）
-        self.search_edit.setCompleter(self.completer)
         search_icon = self.style().standardIcon(QStyle.SP_FileDialogContentsView)
-        search_action = QAction(search_icon, "", self)  # 先创建空动作
-        #icon_font = QFont("Segoe Fluent Icons", search_action.font().pointSize())
-        #search_action.setFont(icon_font)
-        #search_action.setText("")   # 搜索图标字符    
-        #search_action.setToolTip("搜索")
+        search_action = QAction(search_icon, "", self)
         self.search_edit.addAction(search_action, QLineEdit.LeadingPosition)
-        self.search_edit.textChanged.connect(self.on_filter_changed)
-        row1.addWidget(self.search_edit)
+        self.search_edit.setPlaceholderText("搜索舰船名...")
+        self.search_edit.textChanged.connect(self.emit_filter)
+        self.completer = QCompleter()
+        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.completer.setFilterMode(Qt.MatchContains)
+        self.search_edit.setCompleter(self.completer)
+        self.completer.activated.connect(self.on_completer_activated)
+        main_layout.addWidget(self.search_edit)
 
-        # 折叠高级筛选按钮
-        self.adv_btn = QPushButton("高级筛选")
-        self.adv_btn.clicked.connect(self.toggle_advanced_panel)
-        row1.addWidget(self.adv_btn)
-
-        # 按钮
+        # 重置按钮
         self.reset_btn = QPushButton("重置")
         self.reset_btn.clicked.connect(self.reset_clicked)
-        row1.addWidget(self.reset_btn)
+        main_layout.addWidget(self.reset_btn)
 
         self.batch_btn = QToolButton()
         self.batch_btn.setText("批量操作")
@@ -103,210 +69,154 @@ class FilterBar(QWidget):
         batch_menu = QMenu(self)
         self.batch_btn.setMenu(batch_menu)
 
-        # 添加菜单项
-        action_set_owned_true = QAction("设为已获得", self)
-        action_set_owned_true.triggered.connect(self.batch_set_owned_true)
-        batch_menu.addAction(action_set_owned_true)
+        batch_actions = [
+            ("设为已获得", "owned_true"),
+            ("设为未获得", "owned_false"),
+            ("设为已改造", "remodeled_true"),
+            ("设为未改造", "remodeled_false"),
+            ("设为已满破", "max_true"),
+            ("设为未满破", "max_false"),
+            ("设为已120级", "120_true"),
+            ("设为未120级", "120_false"),
+            ("设为已誓约", "oath_true"),
+            ("设为未誓约", "oath_false"),
+            ("设为已拥有特殊兵装", "special_gear_obtained_true"),
+            ("设为未拥有特殊兵装", "special_gear_obtained_false"),
+        ]
+        for text, op in batch_actions:
+            action = QAction(text, self)
+            action.triggered.connect(lambda checked, op=op: self.batch_operation_signal.emit(op, self.get_current_criteria()))
+            batch_menu.addAction(action)
 
-        action_set_owned_false = QAction("设为未获得", self)
-        action_set_owned_false.triggered.connect(self.batch_set_owned_false)
-        batch_menu.addAction(action_set_owned_false)
+        main_layout.addWidget(self.batch_btn)
 
-        action_set_oath_true = QAction("设为誓约", self)
-        action_set_oath_true.triggered.connect(self.batch_set_oath_true)
-        batch_menu.addAction(action_set_oath_true)
+        # 更多操作按钮
+        self.more_btn = QPushButton("更多操作")
+        self.more_btn.clicked.connect(self.show_more_menu)
+        main_layout.addWidget(self.more_btn)
 
-        action_set_oath_false = QAction("取消誓约", self)
-        action_set_oath_false.triggered.connect(self.batch_set_oath_false)
-        batch_menu.addAction(action_set_oath_false)
+        main_layout.addStretch()
 
-        # 满破（突破数=3）
-        action_set_max_true = QAction("设为满破", self)
-        action_set_max_true.triggered.connect(self.batch_set_max_true)
-        batch_menu.addAction(action_set_max_true)
+        self.filter_panel = None  # 高级筛选面板实例
 
-        action_set_max_false = QAction("取消满破", self)
-        action_set_max_false.triggered.connect(self.batch_set_max_false)
-        batch_menu.addAction(action_set_max_false)
-
-        # 120级
-        action_set_120_true = QAction("设为120级", self)
-        action_set_120_true.triggered.connect(self.batch_set_120_true)
-        batch_menu.addAction(action_set_120_true)
-
-        action_set_120_false = QAction("取消120级", self)
-        action_set_120_false.triggered.connect(self.batch_set_120_false)
-        batch_menu.addAction(action_set_120_false)
-
-        # 改造（仅对可改造船有效，但批量时直接设置）
-        action_set_remodeled_true = QAction("设为已改造", self)
-        action_set_remodeled_true.triggered.connect(self.batch_set_remodeled_true)
-        batch_menu.addAction(action_set_remodeled_true)
-
-        action_set_remodeled_false = QAction("取消改造", self)
-        action_set_remodeled_false.triggered.connect(self.batch_set_remodeled_false)
-        batch_menu.addAction(action_set_remodeled_false)
-
-        row1.addWidget(self.batch_btn)
-
-        # 创建“更多操作”按钮
-        #self.base_text = "更多操作"
-        self.more_btn = QToolButton()
-        self.more_btn.setObjectName("more_btn")
-        self.more_btn.setText("更多操作")
-        #self.more_btn.setText(self.base_text + "")
-        #icon_font = QFont("Segoe Fluent Icons", self.more_btn.font().pointSize())
-        #self.more_btn.setFont(icon_font)
-        self.more_btn.setPopupMode(QToolButton.InstantPopup)
-        menu = QMenu(self)
-        self.more_btn.setMenu(menu)
-        #menu.aboutToShow.connect(self.on_more_menu_shown)
-        #menu.aboutToHide.connect(self.on_more_menu_hidden)
-
-        # 添加菜单项
-        action_add_ship = QAction("新建舰船", self)
-        action_add_ship.triggered.connect(self.add_ship_clicked.emit)
-        menu.addAction(action_add_ship)
-
-        action_switch_file = QAction("切换账号", self)
-        action_switch_file.triggered.connect(self.switch_file_clicked.emit)
-        menu.addAction(action_switch_file)
-
-
-        action_export = QAction("导出数据", self)
-        action_export.triggered.connect(self.export_clicked.emit)
-        menu.addAction(action_export)
-
-        action_import = QAction("导入数据", self)
-        action_import.triggered.connect(self.import_clicked.emit)
-        menu.addAction(action_import)
-
-        row1.addWidget(self.more_btn)
-
-        row1.addStretch()
-        main_layout.addLayout(row1)
-
-        self.adv_panel = None
-
-    def toggle_advanced_panel(self):
-        if self.adv_panel is None:
-            from .advanced_filter_panel import AdvancedFilterPanel
-            # 只传递 parent 参数，不传递第一个参数（默认为 None）
-            self.adv_panel = AdvancedFilterPanel(parent=self.window())
-            self.adv_panel.filter_changed.connect(self.on_advanced_filter_changed)
-            btn_pos = self.adv_btn.mapToGlobal(self.adv_btn.rect().bottomLeft())
-            self.adv_panel.move(btn_pos)
-            self.adv_panel.show()
-        else:
-            if self.adv_panel.isVisible():
-                self.adv_panel.hide()
-            else:
-                self.adv_panel.show()
-                btn_pos = self.adv_btn.mapToGlobal(self.adv_btn.rect().bottomLeft())
-                self.adv_panel.move(btn_pos)
-
-    def on_filter_changed(self):
-        #print("on_filter_changed 被调用")
-        criteria = self.get_criteria()
-        if self.faction_combo.currentText() != "全部":
-            criteria['faction'] = self.faction_combo.currentText()
-        if self.class_combo.currentText() != "全部":
-            criteria['ship_class'] = self.class_combo.currentText()
-        if self.rarity_combo.currentText() != "全部":
-            criteria['rarity'] = self.rarity_combo.currentText()
+    def emit_filter(self):
+        """发射当前筛选条件（基础条件 + 高级面板条件）"""
+        text = self.search_edit.text().strip()
+        if text.startswith("[兵装] "):
+            return  # 忽略带前缀的临时文本
+        criteria = self.get_current_criteria()
         self.filter_changed.emit(criteria)
 
-    def reset(self):
-        self.faction_combo.setCurrentText("全部")
-        self.class_combo.setCurrentText("全部")
-        self.rarity_combo.setCurrentText("全部")
-        self.sort_combo.setCurrentIndex(0)
-        self.sort_reverse_btn.setChecked(False)
-        self.search_edit.clear()
-        if self.adv_panel and self.adv_panel.isVisible():
-            self.adv_panel.remodel_cb.setChecked(False)
-            self.adv_panel.remodeled_cb.setChecked(False)
-            self.adv_panel.oath_cb.setChecked(False)
-            self.adv_panel.owned_cb.setChecked(False)
-            self.adv_panel.max_cb.setChecked(False)
-            self.adv_panel.level120_cb.setChecked(False)
-            self.adv_panel.not_owned_cb.setChecked(False)
-            self.adv_panel.not_max_cb.setChecked(False)
-            self.adv_panel.not_level120_cb.setChecked(False)
-            self.adv_panel.can_remodel_not_cb.setChecked(False)
-            self.adv_panel.special_gear_obtained_cb.setChecked(False)
-            self.adv_panel.special_gear_not_obtained_cb.setChecked(False)
-
-    def on_advanced_filter_changed(self, adv_criteria):
-        """高级面板的筛选条件变化时，与基础条件合并后发射"""
-        #print("接收到高级条件:", adv_criteria)
-        base = self.get_criteria()
-        #print("基础条件:", base)
-        combined = base.copy()
-        combined.update(adv_criteria)
-        #print("合并后的筛选条件:", combined)
-        self.filter_changed.emit(combined)
-
-    def get_criteria(self):
-        # 返回当前筛选条件字典，用于刷新时重新应用
+    def get_current_criteria(self):
         criteria = {}
         search_text = self.search_edit.text().strip()
         if search_text:
             criteria['name_contains'] = search_text
-        if self.faction_combo.currentText() != "全部":
-            criteria['faction'] = self.faction_combo.currentText()
-        if self.class_combo.currentText() != "全部":
-            criteria['ship_class'] = self.class_combo.currentText()
-        if self.rarity_combo.currentText() != "全部":
-            criteria['rarity'] = self.rarity_combo.currentText()
+        if self.filter_panel is not None:
+            criteria.update(self.filter_panel.get_criteria())
         return criteria
-    
+
+    def toggle_filter_panel(self):
+        if self.filter_panel is None:
+            from gui.advanced_filter_panel import AdvancedFilterPanel
+            self.filter_panel = AdvancedFilterPanel(self.window())
+            self.filter_panel.filter_changed.connect(self.emit_filter)
+            btn_pos = self.filter_btn.mapToGlobal(self.filter_btn.rect().bottomLeft())
+            self.filter_panel.move(btn_pos)
+            self.filter_panel.show()
+        else:
+            if self.filter_panel.isVisible():
+                self.filter_panel.hide()
+            else:
+                self.filter_panel.show()
+                btn_pos = self.filter_btn.mapToGlobal(self.filter_btn.rect().bottomLeft())
+                self.filter_panel.move(btn_pos)
+
+    def reset(self):
+        self.search_edit.clear()
+        if self.filter_panel:
+            self.filter_panel.reset()
+        self.emit_filter()
+
+    def show_more_menu(self):
+        menu = QMenu(self)
+        actions = [
+            ("新建舰船", self.add_ship_clicked),
+            ("切换账号", self.switch_file_clicked),
+            ("导出数据", self.export_clicked),
+            ("导入数据", self.import_clicked),
+        ]
+        for text, signal in actions:
+            action = QAction(text, self)
+            if callable(signal):
+                action.triggered.connect(signal)
+            else:
+                action.triggered.connect(signal.emit)
+            menu.addAction(action)
+        menu.exec(self.more_btn.mapToGlobal(self.more_btn.rect().bottomLeft()))
+
     def set_ship_names(self, names):
-        """设置补全用的舰船名称列表"""
+        """设置搜索框的补全列表"""
         model = QStringListModel(names)
         self.completer.setModel(model)
-    
-    def open_advanced_filter(self):
-        from .advanced_filter_panel import AdvancedFilterDialog
-        dlg = AdvancedFilterDialog(self.get_criteria(), self)
-        dlg.filter_applied.connect(self.on_advanced_filter_applied)
-        dlg.exec_()
+
+    def set_completer_items(self, ship_names, gear_names):
+        """设置补全列表：舰船名 + 带前缀的兵装名"""
+        items = []
+        self.completer_map = {}
+        for name in ship_names:
+            items.append(name)
+            self.completer_map[name] = name
+        for name in gear_names:
+            if name:
+                display = f"[兵装] {name}"
+                items.append(display)
+                self.completer_map[display] = name
+        model = QStringListModel(items)
+        self.completer.setModel(model)
+
+    def on_completer_activated(self, text):
+        """处理补全项选择，去除前缀后设置搜索文本"""
+        print(f"选中的文本: {text}")
+        actual = self.completer_map.get(text, text)
+        # 临时断开 textChanged 信号，避免递归
+        self.search_edit.blockSignals(True)
+        self.search_edit.setText(actual)
+        self.search_edit.blockSignals(False)
+        self.emit_filter()
 
     def on_sort_changed(self):
-        """排序选项变化时发射信号"""
         index = self.sort_combo.currentIndex()
         reverse = self.sort_reverse_btn.isChecked()
-        # 映射下拉选项到 manager.sort 的 key
         key_map = {
             0: "id",
-            1: "name",
+            1: "game_order",
             2: "rarity",
-            3: "oath",
-            4: "game_order",
-            5: "release_date"
+            3: "name",
+            4: "release_date",
+            5: "remodel_date",
+            6: "oath",
+            7: "total_attr_bonus"
         }
         key = key_map.get(index, "id")
         self.sort_reverse_btn.setText("▲" if reverse else "▼")
         self.sort_order_changed.emit(key, reverse)
 
     def set_edit_password(self):
-        from PySide6.QtWidgets import QInputDialog, QLineEdit, QMessageBox
-        if not self.manager:
+        if not hasattr(self, 'manager') or self.manager is None:
+            QMessageBox.warning(self, "错误", "未设置管理器，无法修改密码。")
             return
         if self.manager.need_password_for_edit():
-            # 请求原密码
             old_pwd, ok = QInputDialog.getText(self, "验证原密码", "请输入当前编辑密码:", QLineEdit.Password)
             if not ok:
                 return
             if not self.manager.verify_edit_password(old_pwd):
                 QMessageBox.warning(self, "错误", "原密码错误，无法修改。")
                 return
-        # 请求新密码
         new_pwd, ok = QInputDialog.getText(self, "设置编辑密码", 
                                        "请输入新密码（留空以清除）:", 
                                        QLineEdit.Password)
         if ok:
-            #self.manager = ShipManager("config.json")
             self.manager.set_edit_password(new_pwd)
             if new_pwd:
                 QMessageBox.information(self, "完成", "编辑密码已设置。")
@@ -314,44 +224,7 @@ class FilterBar(QWidget):
                 QMessageBox.information(self, "完成", "编辑密码已清除。")
 
     def open_settings(self):
-        if self.main_window:
+        if hasattr(self, 'main_window') and self.main_window:
             self.main_window.open_settings()
         else:
-            from PySide6.QtWidgets import QMessageBox
             QMessageBox.warning(self, "错误", "无法打开设置页面。")
-
-    def batch_set_owned_true(self):
-        self.batch_operation_signal.emit("owned_true", self.get_criteria())
-
-    def batch_set_owned_false(self):
-        self.batch_operation_signal.emit("owned_false", self.get_criteria())
-
-    def batch_set_oath_true(self):
-        self.batch_operation_signal.emit("oath_true", self.get_criteria())
-
-    def batch_set_oath_false(self):
-        self.batch_operation_signal.emit("oath_false", self.get_criteria())
-
-    def batch_set_max_true(self):
-        self.batch_operation_signal.emit("max_true", self.get_criteria())
-
-    def batch_set_max_false(self):
-        self.batch_operation_signal.emit("max_false", self.get_criteria())
-
-    def batch_set_120_true(self):
-        self.batch_operation_signal.emit("120_true", self.get_criteria())
-
-    def batch_set_120_false(self):
-        self.batch_operation_signal.emit("120_false", self.get_criteria())
-
-    def batch_set_remodeled_true(self):
-        self.batch_operation_signal.emit("remodeled_true", self.get_criteria())
-
-    def batch_set_remodeled_false(self):
-        self.batch_operation_signal.emit("remodeled_false", self.get_criteria())
-
-    def batch_set_special_gear_obtained_true(self):
-        self.batch_operation_signal.emit("special_gear_obtained_true", self.get_criteria())
-
-    def batch_set_special_gear_obtained_false(self):
-        self.batch_operation_signal.emit("special_gear_obtained_false", self.get_criteria())

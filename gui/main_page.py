@@ -12,6 +12,8 @@ class MainPage(QWidget):
         super().__init__()
         self.manager = manager
         self.main_window = main_window
+        self.current_sort_key = "id"
+        self.current_sort_reverse = False
         self.setup_ui()
         self.setup_signals()
         self.apply_initial_data()
@@ -90,7 +92,8 @@ class MainPage(QWidget):
 
     def apply_initial_data(self):
         ship_names = [ship.name for ship in self.manager.ships]
-        self.filter_bar.set_ship_names(ship_names)
+        gear_names = [ship.special_gear_name for ship in self.manager.ships if ship.special_gear_name]
+        self.filter_bar.set_completer_items(ship_names, gear_names)
         self.apply_filter({})
 
     def apply_filter(self, criteria):
@@ -104,7 +107,7 @@ class MainPage(QWidget):
         filtered = self.manager.filter(criteria)
         # 排序（默认按编号）
         #print(f"筛选后舰船数: {len(filtered)}")
-        filtered = self.manager.sort(filtered, key="id")
+        filtered = self.manager.sort(filtered, key=self.current_sort_key, reverse=self.current_sort_reverse)
         self.ship_list.set_ships(filtered)
 
         if filtered:
@@ -137,8 +140,12 @@ class MainPage(QWidget):
         if not success:
             print("更新失败，可能用户取消了冲突处理")
             return
+        # 更新补全列表（如果名字或特殊兵装有变动）
+        ship_names = [ship.name for ship in self.manager.ships]
+        gear_names = [ship.special_gear_name for ship in self.manager.ships if ship.special_gear_name]
+        self.filter_bar.set_completer_items(ship_names, gear_names)
         # 更新左侧列表显示
-        self.apply_filter(self.filter_bar.get_criteria())
+        self.apply_filter(self.filter_bar.get_current_criteria())
         # 如果当前详情页显示的正是这艘船，刷新详情页
         if self.detail_widget.current_ship and self.detail_widget.current_ship.id == new_ship.id:
             self.detail_widget.set_ship(new_ship)
@@ -151,6 +158,8 @@ class MainPage(QWidget):
     def on_sort_order_changed(self, key, reverse):
         """用户改变排序方式时，重新排序当前列表"""
         # 获取当前显示的舰船列表（即已经过筛选的列表）
+        self.current_sort_key = key
+        self.current_sort_reverse = reverse
         current_ships = self.ship_list.current_ships
         sorted_ships = self.manager.sort(current_ships, key, reverse)
         self.ship_list.set_ships(sorted_ships)
@@ -177,10 +186,11 @@ class MainPage(QWidget):
                 print(f"获取到新船: {new_ship.name}")
                 self.manager.add_ship(new_ship)
                 ship_names = [ship.name for ship in self.manager.ships]
-                self.filter_bar.set_ship_names(ship_names)
+                gear_names = [ship.special_gear_name for ship in self.manager.ships if ship.special_gear_name]
+                self.filter_bar.set_completer_items(ship_names, gear_names)
                 print("已调用 manager.add_ship")
                 # 刷新列表（可能需要重新应用当前筛选）
-                self.apply_filter(self.filter_bar.get_criteria())
+                self.apply_filter(self.filter_bar.get_current_criteria())
             else:
                 print("用户取消")
         finally:
@@ -236,6 +246,7 @@ class MainPage(QWidget):
             source_desc = f"筛选条件下的 {len(ships_to_modify)} 艘舰船"
         if not ships_to_modify:
             QMessageBox.information(self, "提示", "当前筛选条件下没有舰船。")
+            self.apply_filter(self.filter_bar.get_current_criteria())
             return
         
         op_desc = {
@@ -249,6 +260,8 @@ class MainPage(QWidget):
             "120_false": "取消120级",
             "remodeled_true": "设为已改造",
             "remodeled_false": "取消改造",
+            "special_gear_obtained_true": "设为拥有特殊兵装",
+            "special_gear_obtained_false": "设为未拥有特殊兵装",
         }.get(op, op)
 
         # 确认对话框
@@ -299,12 +312,18 @@ class MainPage(QWidget):
             elif op == "remodeled_false":
                 ship.remodeled = False
                 modified_count += 1
+            elif op == "special_gear_obtained_true":
+                ship.special_gear_obtained = True
+                modified_count += 1
+            elif op == "special_gear_obtained_false":
+                ship.special_gear_obtained = False
+                modified_count += 1
 
         self.manager.save()
         if checked_ids:
             self.ship_list.clear_checks()
         # 刷新界面：重新应用筛选（列表更新）并刷新详情页
-        self.apply_filter(self.filter_bar.get_criteria())
+        self.apply_filter(self.filter_bar.get_current_criteria())
         QMessageBox.information(self, "完成", f"已批量修改 {len(ships_to_modify)} 艘舰船。")
 
     def on_ship_selected(self, ship):
