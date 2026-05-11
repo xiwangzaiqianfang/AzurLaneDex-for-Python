@@ -1,6 +1,8 @@
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit,
-                               QComboBox, QCheckBox, QDialogButtonBox, QTextEdit, QGroupBox, QGridLayout, QSpinBox, QScrollArea,
-                               QLabel, QWidget, QHBoxLayout, QPushButton, QAbstractSpinBox, QDateEdit, QFrame, QMessageBox)
+                               QComboBox, QCheckBox, QDialogButtonBox, QTextEdit,
+                               QGroupBox, QGridLayout, QSpinBox, QScrollArea,
+                               QLabel, QWidget, QHBoxLayout, QPushButton, QAbstractSpinBox,
+                               QDateEdit, QFrame, QMessageBox, QButtonGroup, QRadioButton)
 from PySide6.QtCore import Qt, QDate
 from models import Ship
 
@@ -61,7 +63,7 @@ class AddShipDialog(QDialog):
         id_layout.addWidget(self.id_spin)
         id_layout.addWidget(id_minus)
         id_layout.addWidget(id_plus)
-        basic_form.addRow("编号 (0=自动):", id_layout)
+        basic_form.addRow("编号:", id_layout)
 
         order_layout = QHBoxLayout()
         self.game_order_spin = QSpinBox()
@@ -77,13 +79,15 @@ class AddShipDialog(QDialog):
         order_layout.addWidget(self.game_order_spin)
         order_layout.addWidget(order_minus)
         order_layout.addWidget(order_plus)
-        basic_form.addRow("游戏内图鉴顺序:", order_layout)
+        basic_form.addRow("游戏内图鉴顺序 (0=自动):", order_layout)
 
         self.name_edit = QLineEdit()
+        self.alt_name_edit = QLineEdit()
         self.faction_combo = QComboBox()
         self.faction_combo.addItems(["请选择", "白鹰", "皇家", "重樱", "铁血", "东煌", "撒丁帝国", "北方联合", "自由鸢尾", "维希教廷", "郁金王国", "飓风", "META", "其他"])
         self.class_combo = QComboBox()
         self.class_combo.addItems(["请选择","驱逐", "轻巡", "重巡", "超巡", "战巡", "战列", "航母", "轻航", "航战", "重炮", "维修", "潜艇", "潜母", "运输", "风帆"])
+        self.class_combo.currentTextChanged.connect(self.update_default_affects)
         self.rarity_combo = QComboBox()
         self.rarity_combo.addItems(["请选择","普通", "稀有", "精锐", "超稀有", "海上传奇", "最高方案", "决战方案"])
         
@@ -125,6 +129,7 @@ class AddShipDialog(QDialog):
         self.image_path_edit = QLineEdit()
 
         basic_form.addRow("名称:", self.name_edit)
+        basic_form.addRow("和谐名称:", self.alt_name_edit)
         basic_form.addRow("阵营:", self.faction_combo)
         basic_form.addRow("舰种:", self.class_combo)
         basic_form.addRow("稀有度:", self.rarity_combo)
@@ -160,56 +165,120 @@ class AddShipDialog(QDialog):
         attr_title = QLabel("属性加成 (获得/120级)")
         attr_title.setObjectName("cardTitle")
         attr_layout.addWidget(attr_title)
-        #attr_group = QGroupBox("属性加成 (获得/120级)")
-        #attr_layout = QGridLayout(attr_group)
-
-        # 表头
-        #attr_layout.addWidget(QLabel("属性"), 0, 0)
-        #attr_layout.addWidget(QLabel("获得"), 0, 1)
-        #attr_layout.addWidget(QLabel("120级"), 0, 2)
-
-        #attr_layout.setHorizontalSpacing(2)   # 设置列间距为2
-        #attr_layout.setVerticalSpacing(5)     # 可选，调整行间距
-        # 使用网格布局放置控件
-        grid = QGridLayout()
-        grid.setHorizontalSpacing(20)
-        grid.setVerticalSpacing(8)
-        grid.addWidget(QLabel("属性"), 0, 0)
-        grid.addWidget(QLabel("获得"), 0, 1)
-        grid.addWidget(QLabel("120级"), 0, 2)
-
-        # 定义科技项（已在 __init__ 中定义为 self.tech_items，但确保可用）
-        if not hasattr(self, 'tech_items'):
-            self.tech_items = [
-                ("耐久", "durability"),
-                ("炮击", "firepower"),
-                ("雷击", "torpedo"),
-                ("防空", "aa"),
-                ("航空", "aviation"),
-                ("命中", "accuracy"),
-                ("装填", "reload"),
-                ("机动", "mobility"),
-                ("反潜", "antisub")
-            ]
-
         self.attr_spins = {}
-        for row, (label, base) in enumerate(self.tech_items, start=1):
-            #attr_layout.addWidget(QLabel(label), row, 0)
-            grid.addWidget(QLabel(label), row, 0)
-            for col, suffix in enumerate(["obtain", "120"], start=1):
-                container, spin = self.create_spin_with_buttons(min_val=0, max_val=999)
-                grid.addWidget(container, row, col)
-                self.attr_spins[f"tech_{base}_{suffix}"] = spin
-           # 获得阶段
-            #container_obtain, spin_obtain = self.create_spin_with_buttons(min_val=0, max_val=999)
-            #attr_layout.addWidget(container_obtain, row, 1)
-            #self.attr_spins[f"tech_{base}_obtain"] = spin_obtain
-            # 120级阶段
-            #container_120, spin_120 = self.create_spin_with_buttons(min_val=0, max_val=999)
-            #attr_layout.addWidget(container_120, row, 2)
-            #self.attr_spins[f"tech_{base}_120"] = spin_120
 
-        attr_layout.addLayout(grid)
+        # 获得时加成组
+        obtain_group = QGroupBox("获得时加成")
+        obtain_layout = QVBoxLayout(obtain_group)
+
+        # 数值行
+        obtain_value_layout = QHBoxLayout()
+        obtain_value_layout.addWidget(QLabel("数值:"))
+        self.obtain_value_spin = QSpinBox()
+        self.obtain_value_spin.setRange(0, 999)
+        self.obtain_value_spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
+        # 加减按钮
+        obtain_minus = QPushButton("-")
+        obtain_plus = QPushButton("+")
+        obtain_minus.clicked.connect(lambda: self.obtain_value_spin.setValue(self.obtain_value_spin.value() - 1))
+        obtain_plus.clicked.connect(lambda: self.obtain_value_spin.setValue(self.obtain_value_spin.value() + 1))
+        obtain_value_layout.addWidget(self.obtain_value_spin)
+        obtain_value_layout.addWidget(obtain_minus)
+        obtain_value_layout.addWidget(obtain_plus)
+        obtain_value_layout.addStretch()
+        obtain_layout.addLayout(obtain_value_layout)
+
+        # 属性选择（单选）
+        obtain_attr_label = QLabel("加成属性:")
+        obtain_layout.addWidget(obtain_attr_label)
+        self.obtain_attr_group = QButtonGroup(self)
+        obtain_attrs_layout = QHBoxLayout()
+        attr_list = ["耐久", "炮击", "雷击", "防空", "航空", "命中", "装填", "机动", "反潜"]
+        self.tech_items = [
+            ("耐久", "durability"),
+            ("炮击", "firepower"),
+            ("雷击", "torpedo"),
+            ("防空", "aa"),
+            ("航空", "aviation"),
+            ("命中", "accuracy"),
+            ("装填", "reload"),
+            ("机动", "mobility"),
+            ("反潜", "antisub")
+        ]
+        self.obtain_attr_radios = {}
+        for attr in attr_list:
+            rb = QRadioButton(attr)
+            self.obtain_attr_group.addButton(rb)
+            self.obtain_attr_radios[attr] = rb
+            obtain_attrs_layout.addWidget(rb)
+        obtain_attrs_layout.addStretch()
+        obtain_layout.addLayout(obtain_attrs_layout)
+
+        # 适用舰种（多选，网格布局，一行3~4个）
+        obtain_shipclass_label = QLabel("适用舰种:")
+        obtain_layout.addWidget(obtain_shipclass_label)
+        self.obtain_affect_grid = QGridLayout()
+        self.obtain_affect_checkboxes = {}
+        ship_classes = ["驱逐", "轻巡", "重巡", "超巡", "战巡", "战列", "航母", "轻航", "航战", "重炮", "维修", "潜艇", "潜母", "运输", "风帆"]
+        columns = 4
+        for idx, sc in enumerate(ship_classes):
+            cb = QCheckBox(sc)
+            row = idx // columns
+            col = idx % columns
+            self.obtain_affect_grid.addWidget(cb, row, col)
+            self.obtain_affect_checkboxes[sc] = cb
+        obtain_layout.addLayout(self.obtain_affect_grid)
+
+        attr_layout.addWidget(obtain_group)
+
+        # 创建 level120 组
+        level120_group = QGroupBox("120级时加成")
+        level120_layout = QVBoxLayout(level120_group)
+
+        # 数值行
+        level120_value_layout = QHBoxLayout()
+        level120_value_layout.addWidget(QLabel("数值:"))
+        self.level120_value_spin = QSpinBox()
+        self.level120_value_spin.setRange(0, 999)
+        self.level120_value_spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
+        level120_minus = QPushButton("-")
+        level120_plus = QPushButton("+")
+        level120_minus.clicked.connect(lambda: self.level120_value_spin.setValue(self.level120_value_spin.value() - 1))
+        level120_plus.clicked.connect(lambda: self.level120_value_spin.setValue(self.level120_value_spin.value() + 1))
+        level120_value_layout.addWidget(self.level120_value_spin)
+        level120_value_layout.addWidget(level120_minus)
+        level120_value_layout.addWidget(level120_plus)
+        level120_value_layout.addStretch()
+        level120_layout.addLayout(level120_value_layout)
+
+        # 属性选择
+        level120_attr_label = QLabel("加成属性:")
+        level120_layout.addWidget(level120_attr_label)
+        self.level120_attr_group = QButtonGroup(self)
+        self.level120_attr_radios = {}
+        level120_attrs_layout = QHBoxLayout()
+        for attr in attr_list:
+            rb = QRadioButton(attr)
+            self.level120_attr_group.addButton(rb)
+            self.level120_attr_radios[attr] = rb
+            level120_attrs_layout.addWidget(rb)
+        level120_attrs_layout.addStretch()
+        level120_layout.addLayout(level120_attrs_layout)
+
+        # 适用舰种
+        level120_shipclass_label = QLabel("适用舰种:")
+        level120_layout.addWidget(level120_shipclass_label)
+        self.level120_affect_grid = QGridLayout()
+        self.level120_affect_checkboxes = {}
+        for idx, sc in enumerate(ship_classes):
+            cb = QCheckBox(sc)
+            row = idx // columns
+            col = idx % columns
+            self.level120_affect_grid.addWidget(cb, row, col)
+            self.level120_affect_checkboxes[sc] = cb
+        level120_layout.addLayout(self.level120_affect_grid)
+        attr_layout.addWidget(level120_group)
+        
         content_layout.addWidget(attr_card)
         #content_layout.addWidget(attr_group)
 
@@ -247,51 +316,12 @@ class AddShipDialog(QDialog):
         content_layout.addWidget(points_card)
         #content_layout.addWidget(points_group)
 
-        # ---- 科技点适用舰种组 ----
-        affect_card = QFrame()
-        affect_card.setObjectName("card")
-        affect_layout = QVBoxLayout(affect_card)
-        affect_layout.setContentsMargins(10, 10, 10, 10)
-
-        affect_title = QLabel("科技点适用舰种（一般使用系统自动分配项即可）")
-        affect_title.setObjectName("cardTitle")
-        affect_layout.addWidget(affect_title)
-        #affect_group = QGroupBox("科技点适用舰种（一般使用系统自动分配项即可）")
-        #affect_layout = QGridLayout(affect_group)
-
-        # 所有舰种列表
-        ship_classes = ["驱逐", "轻巡", "重巡", "超巡", "战巡", "战列", "航母", "轻航", "航战", "重炮", "维修", "潜艇", "潜母", "运输", "风帆"]
-        self.affect_checkboxes = {}
-        grid_affect = QGridLayout()
-        grid_affect.setHorizontalSpacing(15)
-        grid_affect.setVerticalSpacing(5)
-        columns = 3
-        for index, sc in enumerate(ship_classes):
-            cb = QCheckBox(sc)
-            row = index // columns
-            col = index % columns
-            #affect_layout.addWidget(cb, row, col)
-            grid_affect.addWidget(cb, row, col)
-            self.affect_checkboxes[sc] = cb
-
-        # 将组放入滚动区域（防止内容过多）
-        #affect_scroll = QScrollArea()
-        #affect_scroll.setWidgetResizable(True)
-        #affect_scroll.setWidget(affect_group)
-        #content_layout.addWidget(affect_scroll)  # content_layout 是对话框的主布局
-        
-        self.class_combo.currentTextChanged.connect(self.update_default_affects)
-        #content_layout.addWidget(affect_group)
-
-        affect_layout.addLayout(grid_affect)
-        content_layout.addWidget(affect_card)
-
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         button_box.accepted.connect(self.validate_and_accept)
         button_box.rejected.connect(self.reject)
         content_layout.addWidget(button_box)
 
-    def create_spin_with_buttons(self, min_val=0, max_val=100, suffix="", fixed_width=65):
+    def create_spin_with_buttons(self, min_val=0, max_val=100, suffix="", fixed_width=90):
         """创建一个带加减按钮的SpinBox容器"""
         container = QWidget()
         layout = QHBoxLayout(container)
@@ -328,44 +358,92 @@ class AddShipDialog(QDialog):
         self.special_gear_acquire_edit.setEnabled(enabled)
 
     def update_default_affects(self, ship_class):
-        # 先全部取消勾选
-        for cb in self.affect_checkboxes.values():
-           cb.setChecked(False)
+        # 先清除两组复选框的所有勾选
+        for cb in self.obtain_affect_checkboxes.values():
+            cb.setChecked(False)
+        for cb in self.level120_affect_checkboxes.values():
+            cb.setChecked(False)
 
         # 根据舰种设置默认勾选
-        if ship_class == "驱逐":
-            self.affect_checkboxes["驱逐"].setChecked(True)
-        elif ship_class == "轻巡":
-            self.affect_checkboxes["轻巡"].setChecked(True)
-        elif ship_class in ["重巡", "重炮", "超巡"]:
-            for c in ["重巡", "重炮", "超巡"]:
-                if c in self.affect_checkboxes:
-                    self.affect_checkboxes[c].setChecked(True)
-        elif ship_class in ["战巡", "战列", "航战"]:
-            for c in ["战巡", "战列", "航战"]:
-                if c in self.affect_checkboxes:
-                    self.affect_checkboxes[c].setChecked(True)
-        elif ship_class == "轻航":
-            self.affect_checkboxes["轻航"].setChecked(True)
-        elif ship_class == "航母":
-            if "轻航" in self.affect_checkboxes:
-                self.affect_checkboxes["轻航"].setChecked(True)
-            if "航母" in self.affect_checkboxes:
-                self.affect_checkboxes["航母"].setChecked(True)
-        elif ship_class in ["潜艇", "潜母"]:
-            for c in ["潜艇", "潜母"]:
-                if c in self.affect_checkboxes:
-                    self.affect_checkboxes[c].setChecked(True)
-        elif ship_class == "运输":
-            self.affect_checkboxes["运输"].setChecked(True)
-        elif ship_class == "风帆":
-            self.affect_checkboxes["风帆"].setChecked(True)
-        elif ship_class == "维修":
-            self.affect_checkboxes["维修"].setChecked(True)
+        default_map = {
+            "驱逐": {
+                "obtain": ["驱逐"],
+                "level120": ["驱逐"]
+            },
+            "轻巡": {
+                "obtain": ["轻巡"],
+                "level120": ["轻巡"]
+            },
+            "重巡":  {
+                "obtain": ["重巡", "超巡", "重炮"],
+                "level120": ["重巡", "超巡", "重炮"]
+            },
+            "超巡": {
+                "obtain": ["重巡", "超巡", "重炮"],
+                "level120": ["重巡", "超巡", "重炮"]
+            },
+            "重炮": {
+                "obtain": ["重巡", "超巡", "重炮"],
+                "level120": ["重巡", "超巡", "重炮"]
+            },
+            "战巡": {
+                "obtain": ["战巡", "战列", "航战"],
+                "level120": ["战巡"]
+            },
+            "战列": {
+                "obtain": ["战巡", "战列", "航战"],
+                "level120": ["战巡", "战列", "航战"]
+            },
+            "航战": {
+                "obtain": ["战巡", "战列", "航战"],
+                "level120": ["航战"]
+            },
+            "航母": {
+                "obtain": ["航母", "轻航"],
+                "level120": ["航母"]
+            },
+            "轻航": {
+                "obtain": ["轻航"],
+                "level120": ["航母", "轻航"]
+            },
+            "维修": {
+                "obtain": ["维修"],
+                "level120": ["维修"]
+            },
+            "潜艇": {
+                "obtain": ["潜艇", "潜母"],
+                "level120": ["潜艇", "潜母"]
+            },
+            "潜母": {
+                "obtain": ["潜艇", "潜母"],
+                "level120": ["潜艇", "潜母"]
+            },
+            "运输": {
+                "obtain": ["运输"],
+                "level120": ["运输"]
+            },
+            "风帆": {
+                "obtain": ["风帆"],
+                "level120": ["风帆"]
+            },
+        }
+
+        if ship_class in default_map:
+            obtain_preset = default_map[ship_class]["obtain"]
+            level120_preset = default_map[ship_class]["level120"]
         else:
-            # 默认只勾选自身
-            if ship_class in self.affect_checkboxes:
-                self.affect_checkboxes[ship_class].setChecked(True)
+            obtain_preset = [ship_class] if ship_class in self.obtain_affect_checkboxes else []
+            level120_preset = [ship_class] if ship_class in self.level120_affect_checkboxes else []
+
+        # 设置获得时适用舰种
+        for sc in obtain_preset:
+            if sc in self.obtain_affect_checkboxes:
+                self.obtain_affect_checkboxes[sc].setChecked(True)
+
+        # 设置120级适用舰种
+        for sc in level120_preset:
+            if sc in self.level120_affect_checkboxes:
+                self.level120_affect_checkboxes[sc].setChecked(True)
 
     def validate_and_accept(self):
         """验证输入，通过则关闭对话框，否则不关闭并提示"""
@@ -389,53 +467,53 @@ class AddShipDialog(QDialog):
         #    from PySide6.QtWidgets import QMessageBox
         #    QMessageBox.warning(self, "输入不完整", "请完整选择阵营、舰种和稀有度。")
         #    return None  # 返回 None 表示取消添加
-        if self.can_remodel_cb.isChecked():
-            remodel_date = self.remodel_date_edit.date().toString("yyyy-MM-dd")  # 如果使用 QDateEdit
-            # 如果使用 QLineEdit，则是 remodel_date = self.remodel_date_edit.text().strip()
-        else:
-            remodel_date = ""
+        manual_id = self.id_spin.value()
+        ship_id = 0 if manual_id == 0 else manual_id
+        game_order = self.game_order_spin.value()
+        can_remodel = self.can_remodel_cb.isChecked()
+        remodel_date = self.remodel_date_edit.date().toString("yyyy-MM-dd") if can_remodel else ""
         if self.can_special_gear_cb.isChecked():
             special_gear_name = self.special_gear_name_edit.text()
             special_gear_date = self.special_gear_date_edit.date().toString("yyyy-MM-dd")
             special_gear_acquire = self.special_gear_acquire_edit.text()
         else:
             special_gear_name = special_gear_date = special_gear_acquire = ""
-        manual_id = self.id_spin.value()
-        ship_id = 0 if manual_id == 0 else manual_id
 
-        # 从属性加成SpinBox收集值
-        attr_kwargs = {}
-        for key, spin in self.attr_spins.items():
-            attr_kwargs[key] = spin.value()
-        # 为满破阶段添加默认值0
-        for base in [item[1] for item in self.tech_items]:
-            attr_kwargs[f"tech_{base}_max"] = 0
-            
-        game_order = self.game_order_spin.value()
-
-        # 收集科技点总和
+        # 获取获得时加成
+        obtain_bonus_attr = ""
+        for attr, rb in self.obtain_attr_radios.items():
+            if rb.isChecked():
+                obtain_bonus_attr = attr
+                break
+        obtain_bonus_value = self.obtain_value_spin.value()
+        obtain_affects = [sc for sc, cb in self.obtain_affect_checkboxes.items() if cb.isChecked()]
+        
+        # 获取120级时加成
+        level120_bonus_attr = ""
+        for attr, rb in self.level120_attr_radios.items():
+            if rb.isChecked():
+                level120_bonus_attr = attr
+                break
+        level120_bonus_value = self.level120_value_spin.value()
+        level120_affects = [sc for sc, cb in self.level120_affect_checkboxes.items() if cb.isChecked()]
+        
+        # 科技点总和
         tech_points_obtain = self.tech_points_obtain.value()
         tech_points_max = self.tech_points_max.value()
         tech_points_120 = self.tech_points_120.value()
-
-        # 收集适用舰种
-        tech_affects = [sc for sc, cb in self.affect_checkboxes.items() if cb.isChecked()]
-
-        # 收集文本加成（如果保留文本输入框）
-        bonus_obtain = []
-        bonus_120 = []
         
-        # 合并所有参数到字典
+        # 构建 Ship 参数字典
         ship_kwargs = {
             "id": ship_id,
             "game_order": game_order,
             "name": self.name_edit.text(),
+            "alt_name": self.alt_name_edit.text().strip(),
             "faction": self.faction_combo.currentText(),
             "ship_class": self.class_combo.currentText(),
             "rarity": self.rarity_combo.currentText(),
             "owned": False,
             "breakthrough": 0,
-            "can_remodel": self.can_remodel_cb.isChecked(),
+            "can_remodel": can_remodel,
             "remodel_date": remodel_date,
             "remodeled": False,
             "oath": False,
@@ -450,18 +528,22 @@ class AddShipDialog(QDialog):
             "release_date": self.release_date_edit.date().toString("yyyy-MM-dd"),
             "notes": self.notes_edit.text(),
             "image_path": self.image_path_edit.text(),
-            "tech_affects": tech_affects,
+            "tech_affects": [],   # 已废弃
             "tech_points_obtain": tech_points_obtain,
             "tech_points_max": tech_points_max,
             "tech_points_120": tech_points_120,
-            "bonus_obtain": bonus_obtain,
-            "bonus_120": bonus_120,
+            "obtain_bonus_attr": obtain_bonus_attr,
+            "obtain_bonus_value": obtain_bonus_value,
+            "obtain_affects": obtain_affects,
+            "level120_bonus_attr": level120_bonus_attr,
+            "level120_bonus_value": level120_bonus_value,
+            "level120_affects": level120_affects,
             "can_special_gear": self.can_special_gear_cb.isChecked(),
             "special_gear_name": special_gear_name,
-            "special_gear_date": special_gear_date, 
-            "special_gear_acquire": special_gear_acquire
+            "special_gear_date": special_gear_date,
+            "special_gear_acquire": special_gear_acquire,
+            "special_gear_obtained": False,
         }
-        ship_kwargs.update(attr_kwargs)  # 将九属性字段合并进去
 
         ship = Ship(**ship_kwargs)
         print(f"新建舰船: id={ship.id}, name={ship.name}")

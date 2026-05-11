@@ -344,6 +344,8 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """窗口关闭时保存大小和位置"""
+        if hasattr(self, 'console_widget') and self.console_widget:
+            self.console_widget.restore_std()
         self.settings.setValue("window_geometry", self.saveGeometry())
         #print("MainWindow closeEvent")
         super().closeEvent(event)
@@ -565,13 +567,13 @@ class MainWindow(QMainWindow):
                     QMessageBox.Yes | QMessageBox.No
                 )
                 if ret == QMessageBox.Yes:
-                    QDesktopServices.openUrl(QUrl("https://github.com/xiwangzaiqianfang/AzurLane-Dex/releases/latest"))
+                    QDesktopServices.openUrl(QUrl("https://github.com/xiwangzaiqianfang/AzurLaneDex-for-Python/releases/latest"))
             else:
                 QMessageBox.information(self, "检查更新", "当前已是最新版本。")
         
             """从网络更新数据"""
             # 可以弹出一个对话框让用户输入 URL，或者使用固定的默认 URL
-            default_url = "https://raw.githubusercontent.com/xiwangzaiqianfang/AzurLane-Dex/main/ships.json"
+            default_url = "https://raw.githubusercontent.com/xiwangzaiqianfang/AzurLaneDex-for-Python/main/ships.json"
             success = self.manager.update_from_github(default_url)
             if success:
                 self.main_page.apply_filter(self.main_page.filter_bar.get_current_criteria())
@@ -681,6 +683,12 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "成功", f"已创建账户 {name} 并导入数据，已自动切换")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"导入失败：{e}")
+
+    def show_console(self):
+        if not hasattr(self, 'console_widget') or self.console_widget is None:
+            from gui.console_widget import ConsoleWidget
+            self.console_widget = ConsoleWidget(self)
+        self.console_widget.show()
 
     def export_static_data(self):
         """导出静态数据（仅开发者）"""

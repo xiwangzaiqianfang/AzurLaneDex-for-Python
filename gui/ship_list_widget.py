@@ -68,7 +68,10 @@ class ShipListWidget(QTableWidget):
             self.setItem(row, 0, check_item)
             self.setItem(row, 1, QTableWidgetItem(str(ship.id)))
             #self.setItem(row, 2, QTableWidgetItem(ship.name))
-            name_item = QTableWidgetItem(ship.name)
+            display_name = ship.name
+            if ship.alt_name:
+                display_name = f"{ship.name}（{ship.alt_name}）"
+            name_item = QTableWidgetItem(display_name)
             name_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             name_item.setToolTip(ship.name)
             self.setItem(row, 2, name_item)
@@ -111,7 +114,11 @@ class ShipListWidget(QTableWidget):
                 self.current_ships[row] = ship
                 # 更新表格显示
                 self.item(row, 1).setText(str(ship.id))
-                name_item = QTableWidgetItem(ship.name)
+                display_name = ship.name
+                if ship.alt_name:
+                    display_name = f"{ship.name}（{ship.alt_name}）"
+                name_item = QTableWidgetItem(display_name)
+                name_item.setToolTip(ship.name)
                 if ship.special_gear_name:
                     name_item.setToolTip(f"特殊兵装: {ship.special_gear_name}")
                 name_item.setToolTip(ship.name)

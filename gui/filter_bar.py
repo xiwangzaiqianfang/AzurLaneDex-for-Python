@@ -13,6 +13,7 @@ class FilterBar(QWidget):
     export_user_state_clicked = Signal()
     import_user_state_overwrite_clicked = Signal()
     import_user_state_new_clicked = Signal()
+    show_console_clicked = Signal()
     update_online_clicked = Signal()
     fleet_tech_clicked = Signal()
     theme_toggled = Signal()
@@ -107,7 +108,13 @@ class FilterBar(QWidget):
     def emit_filter(self):
         """发射当前筛选条件（基础条件 + 高级面板条件）"""
         text = self.search_edit.text().strip()
+        if text.startswith("[和谐名称] "):
+            return  # 忽略带前缀的临时文本
         if text.startswith("[兵装] "):
+            return  # 忽略带前缀的临时文本
+        if text.startswith("[活动] "):
+            return  # 忽略带前缀的临时文本
+        if text.startswith("[获取方式] "):
             return  # 忽略带前缀的临时文本
         criteria = self.get_current_criteria()
         self.filter_changed.emit(criteria)
@@ -154,6 +161,7 @@ class FilterBar(QWidget):
             ("导出当前账户数据", self.export_user_state_clicked),
             ("导入数据并覆盖当前账户", self.import_user_state_overwrite_clicked),
             ("导入数据并创建新账户", self.import_user_state_new_clicked),
+            ("显示终端", self.show_console_clicked),
         ]
         for text, signal in base_actions:
             action = QAction(text, self)
@@ -181,18 +189,33 @@ class FilterBar(QWidget):
         model = QStringListModel(names)
         self.completer.setModel(model)
 
-    def set_completer_items(self, ship_names, gear_names):
+    def set_completer_items(self, ship_names, alt_names, gear_names, event_names, acquire_keywords=None):
         """设置补全列表：舰船名 + 带前缀的兵装名"""
         items = []
         self.completer_map = {}
         for name in ship_names:
             items.append(name)
             self.completer_map[name] = name
+        for name in alt_names:
+            if name:
+                display = f"[和谐名称] {name}"
+                items.append(display)
+                self.completer_map[display] = name
         for name in gear_names:
             if name:
                 display = f"[兵装] {name}"
                 items.append(display)
                 self.completer_map[display] = name
+        for name in event_names:
+            if name:
+                display = f"[活动] {name}"
+                items.append(display)
+                self.completer_map[display] = name
+        if acquire_keywords:
+            for kw in acquire_keywords:
+                display = f"[获取方式] {kw}"
+                items.append(display)
+                self.completer_map[display] = kw
         model = QStringListModel(items)
         self.completer.setModel(model)
 

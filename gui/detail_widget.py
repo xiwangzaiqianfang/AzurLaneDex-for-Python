@@ -177,78 +177,6 @@ class DetailWidget(QWidget):
         state_layout.addLayout(hbox)
         layout.addWidget(state_card)
 
-        # ---- 属性加成 (动态计算总和) ----
-        #tech_group = QGroupBox("属性加成总和 (获得+满破+120级)")
-        #tech_layout = QGridLayout(tech_group)
-
-        #self.tech_labels = {}  # 存储每个科技项的QLabel
-
-        #tech_list = [
-        #    ("耐久", "tech_durability"),
-        #    ("炮击", "tech_firepower"),
-        #    ("雷击", "tech_torpedo"),
-        #    ("防空", "tech_aa"),
-        #    ("航空", "tech_aviation"),
-        #    ("命中", "tech_accuracy"),
-        #    ("装填", "tech_reload"),
-        #    ("机动", "tech_mobility"),
-        #    ("反潜", "tech_antisub")
-        #]
-
-        #for i, (display_name, base_name) in enumerate(tech_list):
-        #    row = i // 3
-        #    col = (i % 3) * 2
-        #    label_name = QLabel(display_name + ":")
-        #    label_value = QLabel("0")
-        #    label_value.setAlignment(Qt.AlignRight)
-        #    tech_layout.addWidget(label_name, row, col)
-        #    tech_layout.addWidget(label_value, row, col+1)
-        #    self.tech_labels[base_name] = label_value
-
-        #layout.addWidget(tech_group)
-
-        # ---- 科技点卡片 ----
-        tech_card = QFrame()
-        tech_card.setObjectName("card")
-        tech_layout = QVBoxLayout(tech_card)
-        tech_layout.setContentsMargins(10, 10, 10, 10)
-        tech_layout.setAlignment(Qt.AlignVCenter)
-        tech_title_layout = QHBoxLayout()
-        self.tech_icon_label = QLabel()
-        pixmap = svg_to_pixmap_min("ship", "tech", 18)
-        self.tech_icon_label.setPixmap(pixmap)
-        self.tech_icon_label.setFixedSize(22, 22)
-        self.tech_icon_label.setAlignment(Qt.AlignCenter)
-        tech_title_layout.addWidget(self.tech_icon_label)
-        tech_title = QLabel("舰队科技")
-        tech_title.setObjectName("cardTitle")
-        tech_title.setAlignment(Qt.AlignVCenter)
-        tech_title.setStyleSheet("font-weight: bold; margin: 0; padding: 0;")
-        tech_title_layout.setAlignment(Qt.AlignVCenter)
-        tech_title_layout.addWidget(tech_title)
-        tech_title_layout.addStretch()
-        tech_layout.addLayout(tech_title_layout)
-        #attr_group = QGroupBox("舰队科技")
-
-        attr_form = QFormLayout()
-        attr_form.setContentsMargins(0, 0, 0, 0)
-        #attr_form = QFormLayout(attr_group)
-        self.attr_bonus_label = QLabel()
-        self.affects_label = QLabel()
-        self.tech_points_total_label = QLabel()
-        self.tech_obtain_label = QLabel()
-        self.tech_120_label = QLabel()
-        self.tech_max_label = QLabel()
-        attr_form.addRow("科技点总和", self.tech_points_total_label)
-        attr_form.addRow("获得科技点", self.tech_obtain_label)
-        attr_form.addRow("满破科技点：", self.tech_max_label)
-        attr_form.addRow("120级科技点：", self.tech_120_label)
-        attr_form.addRow("属性加成：", self.attr_bonus_label)
-        attr_form.addRow("适用舰种：", self.affects_label)
-        tech_layout.addLayout(attr_form)
-        #layout.addWidget(attr_group)
-        layout.addWidget(tech_card)
-
         # ---- 获取方式 ----
         acquire_card = QFrame()
         acquire_card.setObjectName("card")
@@ -275,6 +203,7 @@ class DetailWidget(QWidget):
         #acquire_form = QFormLayout(acquire_group)
         self.acquire_main_label = QLabel()
         self.acquire_detail_label = QLabel()
+        self.acquire_detail_label.setWordWrap(True)
         self.build_time_label = QLabel()
         self.drop_locations_label = QLabel()
         self.drop_locations_label.setWordWrap(True)
@@ -320,6 +249,7 @@ class DetailWidget(QWidget):
         self.debut_label = QLabel()
         self.release_date_label = QLabel()
         self.notes_label = QLabel()
+        self.notes_label.setWordWrap(True)
         event_form.addRow("首次登场:", self.debut_label)
         event_form.addRow("实装时间:", self.release_date_label)
         self.remodel_date_label = QLabel()
@@ -362,6 +292,72 @@ class DetailWidget(QWidget):
         gear_layout.addLayout(gear_form)
 
         layout.addWidget(self.gear_card)
+
+        # ---- 科技点卡片 ----
+        tech_card = QFrame()
+        tech_card.setObjectName("card")
+        tech_layout = QVBoxLayout(tech_card)
+        tech_layout.setContentsMargins(10, 10, 10, 10)
+        tech_layout.setAlignment(Qt.AlignVCenter)
+        tech_title_layout = QHBoxLayout()
+        self.tech_icon_label = QLabel()
+        pixmap = svg_to_pixmap_min("ship", "tech", 18)
+        self.tech_icon_label.setPixmap(pixmap)
+        self.tech_icon_label.setFixedSize(22, 22)
+        self.tech_icon_label.setAlignment(Qt.AlignCenter)
+        tech_title_layout.addWidget(self.tech_icon_label)
+        tech_title = QLabel("舰队科技")
+        tech_title.setObjectName("cardTitle")
+        tech_title.setAlignment(Qt.AlignVCenter)
+        tech_title.setStyleSheet("font-weight: bold; margin: 0; padding: 0;")
+        tech_title_layout.setAlignment(Qt.AlignVCenter)
+        tech_title_layout.addWidget(tech_title)
+        tech_title_layout.addStretch()
+        tech_layout.addLayout(tech_title_layout)
+        #attr_group = QGroupBox("舰队科技")
+        # 表单布局
+        attr_form = QFormLayout()
+        attr_form.setContentsMargins(0, 0, 0, 0)
+        
+        self.attr_bonus_label = QLabel()
+        self.obtain_bonus_label = QLabel()
+        self.obtain_bonus_label.setWordWrap(True)
+        self.level120_bonus_label = QLabel()
+        self.level120_bonus_label.setWordWrap(True)
+
+        self.obtain_affects_label = QLabel()
+        self.obtain_affects_label.setWordWrap(True)
+        self.level120_affects_label = QLabel()
+        self.level120_affects_label.setWordWrap(True)
+
+        self.tech_points_total_label = QLabel()
+        self.tech_obtain_label = QLabel()
+        self.tech_120_label = QLabel()
+        self.tech_max_label = QLabel()
+        attr_form.addRow("科技点总和", self.tech_points_total_label)
+        attr_form.addRow("获得科技点", self.tech_obtain_label)
+        attr_form.addRow("满破科技点：", self.tech_max_label)
+        attr_form.addRow("120级科技点：", self.tech_120_label)
+        #attr_form.addRow("属性加成")
+        self.obtain_bonus_label = QLabel()
+        attr_form.addRow("获得时加成:", self.obtain_bonus_label)
+        # 获得时适用舰种
+        self.obtain_affects_label = QLabel()
+        self.obtain_affects_label.setWordWrap(True)
+        attr_form.addRow("获得时适用舰种:", self.obtain_affects_label)
+        
+        # 120级加成
+        self.level120_bonus_label = QLabel()
+        attr_form.addRow("120级加成:", self.level120_bonus_label)
+
+        # 120级适用舰种
+        self.level120_affects_label = QLabel()
+        self.level120_affects_label.setWordWrap(True)
+        attr_form.addRow("120级适用舰种:", self.level120_affects_label)
+        
+        tech_layout.addLayout(attr_form)
+        #layout.addWidget(attr_group)
+        layout.addWidget(tech_card)
 
         # 编辑按钮
         #edit_icon = load_icon("ship", "edit", state="normal")
@@ -460,27 +456,23 @@ class DetailWidget(QWidget):
         self.breakthrough_plus.setEnabled(owned)
 
         # 显示属性加成
-        attr_lines = []
-        for base_display, base_key in [
-            ("耐久", "durability"), ("炮击", "firepower"), ("雷击", "torpedo"),
-            ("防空", "aa"), ("航空", "aviation"), ("命中", "accuracy"),
-            ("装填", "reload"), ("机动", "mobility"), ("反潜", "antisub")
-        ]:
-            obtain = getattr(s, f"tech_{base_key}_obtain", 0)
-            val_120 = getattr(s, f"tech_{base_key}_120", 0)
-            if obtain != 0 or val_120 != 0:
-                attr_lines.append(f"{base_display}: 获得{obtain}  120级{val_120}")
-        if attr_lines:
-            self.attr_bonus_label.setText("\n".join(attr_lines))
+        # 获得时加成
+        if s.obtain_bonus_attr and s.obtain_bonus_value:
+            obtain_text = f"{s.obtain_bonus_attr} +{s.obtain_bonus_value}"
         else:
-            self.attr_bonus_label.setText("无")
+            obtain_text = "无"
+        self.obtain_bonus_label.setText(obtain_text)
 
-        # 显示适用舰种
-        tech_affects = s.tech_affects
-        if tech_affects is None or not isinstance(tech_affects, list):
-            tech_affects = []
-        affects = ", ".join(tech_affects) if tech_affects else "无限制"
-        self.affects_label.setText(f"{affects}")
+        # 120级时加成
+        if s.level120_bonus_attr and s.level120_bonus_value:
+            level120_text = f"{s.level120_bonus_attr} +{s.level120_bonus_value}"
+        else:
+            level120_text = "无"
+        self.level120_bonus_label.setText(level120_text)
+
+        # 适用舰种显示
+        self.obtain_affects_label.setText(", ".join(s.obtain_affects) if s.obtain_affects else "无")
+        self.level120_affects_label.setText(", ".join(s.level120_affects) if s.level120_affects else "无")
 
         # 显示科技点总和
         total_tech = s.tech_points_obtain + s.tech_points_max + s.tech_points_120

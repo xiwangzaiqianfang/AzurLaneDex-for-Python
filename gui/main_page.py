@@ -46,7 +46,7 @@ class MainPage(QWidget):
         icon_label = QLabel("❗")
         icon_label.setStyleSheet("font-size: 18px;")
         info_layout.addWidget(icon_label)
-        self.info_bar_msg = QLabel("您正在使用测试版本，部分功能可能不稳定，请谨慎使用。")
+        self.info_bar_msg = QLabel("您正在使用测试版本，部分功能可能不稳定，请谨慎使用。软件已迁移到WinUI 3，请前往下载新版本。")
         info_layout.addWidget(self.info_bar_msg)
         info_layout.addStretch()
         close_btn = QPushButton("✕")
@@ -94,6 +94,7 @@ class MainPage(QWidget):
 
         self.filter_bar.main_window = self.main_window
         self.filter_bar.manager = self.manager
+        self.filter_bar.show_console_clicked.connect(self.main_window.show_console)
 
         self.ship_list.current_ship_changed.connect(self.on_ship_selected)
         self.ship_list.sort_requested.connect(self.on_sort_requested)
@@ -106,8 +107,12 @@ class MainPage(QWidget):
 
     def apply_initial_data(self):
         ship_names = [ship.name for ship in self.manager.ships]
+        alt_names = [ship.alt_name for ship in self.manager.ships if ship.alt_name]
         gear_names = [ship.special_gear_name for ship in self.manager.ships if ship.special_gear_name]
-        self.filter_bar.set_completer_items(ship_names, gear_names)
+        event_names = [ship.debut_event for ship in self.manager.ships if ship.debut_event]
+        event_names = list(set(event_names))
+        acquire_keywords = ["仅限打捞"]
+        self.filter_bar.set_completer_items(ship_names, alt_names, gear_names, event_names, acquire_keywords)
         self.apply_filter({})
 
     def apply_filter(self, criteria):
@@ -157,7 +162,9 @@ class MainPage(QWidget):
         # 更新补全列表（如果名字或特殊兵装有变动）
         ship_names = [ship.name for ship in self.manager.ships]
         gear_names = [ship.special_gear_name for ship in self.manager.ships if ship.special_gear_name]
-        self.filter_bar.set_completer_items(ship_names, gear_names)
+        event_names = [ship.debut_event for ship in self.manager.ships if ship.debut_event]
+        acquire_keywords = ["仅限打捞"]
+        self.filter_bar.set_completer_items(ship_names, gear_names, event_names, acquire_keywords)
         # 更新左侧列表显示
         self.apply_filter(self.filter_bar.get_current_criteria())
         # 如果当前详情页显示的正是这艘船，刷新详情页
@@ -201,7 +208,9 @@ class MainPage(QWidget):
                 self.manager.add_ship(new_ship)
                 ship_names = [ship.name for ship in self.manager.ships]
                 gear_names = [ship.special_gear_name for ship in self.manager.ships if ship.special_gear_name]
-                self.filter_bar.set_completer_items(ship_names, gear_names)
+                event_names = [ship.debut_event for ship in self.manager.ships if ship.debut_event]
+                acquire_keywords = ["仅限打捞"]
+                self.filter_bar.set_completer_items(ship_names, gear_names, event_names, acquire_keywords)
                 print("已调用 manager.add_ship")
                 # 刷新列表（可能需要重新应用当前筛选）
                 self.apply_filter(self.filter_bar.get_current_criteria())

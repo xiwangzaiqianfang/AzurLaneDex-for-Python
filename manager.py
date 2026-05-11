@@ -29,6 +29,17 @@ class ShipManager(QObject):
         'owned', 'breakthrough', 'remodeled', 'oath', 'level_120', 
         'special_gear_obtained'
     }
+    attr_map = [
+        ("耐久", "durability"),
+        ("炮击", "firepower"),
+        ("雷击", "torpedo"),
+        ("防空", "aa"),
+        ("航空", "aviation"),
+        ("命中", "accuracy"),
+        ("装填", "reload"),
+        ("机动", "mobility"),
+        ("反潜", "antisub")
+    ]
 
     def __init__(self, account_manager, dev_mode=False):
         super().__init__()
@@ -79,6 +90,7 @@ class ShipManager(QObject):
                 self.state_path = os.path.join(self.user_dir, current_user, "ships_state.json")
             else:
                 self.state_path = None
+
                 # 尝试从打包资源中复制默认静态文件
                 default_static = resource_path("data/static/ships_static.json")
                 if os.path.exists(default_static):
@@ -97,6 +109,9 @@ class ShipManager(QObject):
         self.version = static_data.get("version", "0.0")
         static_ships = static_data.get("ships", [])
         
+        for ship_dict in static_ships:
+                self._migrate_old_bonus(ship_dict)
+
         # 2. 加载用户状态
         state_dict = {}
         if os.path.exists(self.state_path):
@@ -110,14 +125,12 @@ class ShipManager(QObject):
             ship_id = static['id']
             state = state_dict.get(ship_id, {})
             merged = {**static, **state}
-            ship = Ship.from_dict(merged)
-            self.ships.append(ship)
-        
-        # 清理无效改造日期
-        for ship in self.ships:
-            if not ship.can_remodel and ship.remodel_date:
-                ship.remodel_date = ""
-                print(f"清理不可改造舰船 {ship.name} 的改造日期")
+            self._clean_ship_dict(merged)
+            try:
+                ship = Ship.from_dict(merged)
+                self.ships.append(ship)
+            except Exception as e:
+                print(f"创建 Ship 对象失败，ID={ship_id}: {e}")
 
         self._auto_assign_game_order()
         print(f"[INFO] 成功加载 {len(self.ships)} 条舰船，版本 {self.version}")
@@ -381,7 +394,13 @@ class ShipManager(QObject):
                 result = [s for s in result if ("μ" in s.name or "（μ" in s.name or s.name.startswith("小"))]
             elif field == "name_contains" and value:
                 lower_value = value.lower()
-                result = [s for s in result if lower_value in s.name.lower() or (s.special_gear_name and lower_value in s.special_gear_name.lower())]
+                result = [s for s in result if 
+                          lower_value in s.name.lower() 
+                          or (s.alt_name and lower_value in s.alt_name.lower())
+                          or (s.special_gear_name and lower_value in s.special_gear_name.lower())
+                          or (s.debut_event and lower_value in s.debut_event.lower())
+                          or (s.acquire_detail and lower_value in s.acquire_detail.lower())
+                          or (s.acquire_main and lower_value in s.acquire_main.lower())]
             elif field == "not_owned" and value:
                 result = [s for s in result if not s.owned]
             elif field == "not_max" and value:
@@ -550,39 +569,28 @@ class ShipManager(QObject):
         """
         计算全舰队属性加成
         返回字典：{(舰种, 属性): 总值}
+        加成规则：
+            - 获得时加成（tech_xxx_obtain）作用于 obtain_affects 中的舰种
+            - 120级时加成（tech_xxx_120）作用于 level120_affects 中的舰种
+            - 若对应列表为空，则该项不生效
         """
         bonuses = {}
+        # 属性映射（中文 -> 用于存储的 key，可选）
         for ship in self.ships:
             if not ship.owned:
                 continue
-            affects = ship.tech_affects if ship.tech_affects else []
-            if not affects:
-                continue
-            # 遍历九个属性
-            for base_display, base_key in [
-                ("耐久", "durability"), ("炮击", "firepower"), ("雷击", "torpedo"),
-                ("防空", "aa"), ("航空", "aviation"), ("命中", "accuracy"),
-                ("装填", "reload"), ("机动", "mobility"), ("反潜", "antisub")
-            ]:
-                # 获得时加成
-                obtain = getattr(ship, f"tech_{base_key}_obtain", 0)
-                val_120 = getattr(ship, f"tech_{base_key}_120", 0)
-                # 强制转换
-                try:
-                    obtain = int(obtain)
-                    val_120 = int(val_120)
-                except:
-                    obtain = 0
-                    val_120 = 0
-                if obtain != 0:
-                    for sc in affects:
-                        key = (sc, base_display)
-                        bonuses[key] = bonuses.get(key, 0) + obtain
-                # 120级加成
-                if val_120 != 0:
-                    for sc in affects:
-                        key = (sc, base_display)
-                        bonuses[key] = bonuses.get(key, 0) + val_120
+
+            # 获得时加成
+            if ship.obtain_bonus_attr and ship.obtain_bonus_value != 0 and ship.obtain_affects:
+                for sc in ship.obtain_affects:
+                    key = (sc, ship.obtain_bonus_attr)
+                    bonuses[key] = bonuses.get(key, 0) + ship.obtain_bonus_value
+
+            # 120级时加成
+            if ship.level120_bonus_attr and ship.level120_bonus_value != 0 and ship.level120_affects:
+                for sc in ship.level120_affects:
+                    key = (sc, ship.level120_bonus_attr)
+                    bonuses[key] = bonuses.get(key, 0) + ship.level120_bonus_value
         return bonuses
 
     def _parse_and_add_bonus(self, bonuses_dict, bonus_str):
@@ -1219,64 +1227,25 @@ class ShipManager(QObject):
             else:
                 raise ValueError("无法识别的 ships.json 格式")
 
-            def clean_value(value, field_type):
-                """根据字段类型清洗单个值"""
-                if value is None:
-                    return None
-                if isinstance(value, str):
-                    # 清理常见无效字符串
-                    lower_val = value.lower().strip()
-                    if lower_val in ("nan", "null", "none", "na", ""):
-                        return None
-                    # 去除首尾空格
-                    value = value.strip()
-                    if value == "":
-                        return None
-                    # 根据目标类型尝试转换（如果是整数字段且值为数字字符串）
-                    if field_type == int:
-                        try:
-                            return int(float(value))
-                        except:
-                            return 0
-                    elif field_type == bool:
-                        return value.lower() in ("true", "1", "yes")
-                    elif field_type == list:
-                        return []      # 列表字段遇到字符串时置空（后续会再解析JSON，但先清空也可）
-                    elif field_type == dict:
-                        return {}
-                # 其他原样返回
-                return value
-
             ship_fields = Ship.__dataclass_fields__
             static_ships = []
             state_list = []
 
             for ship in ships:
-                # 字段清洗
-                cleaned_ship = {}
-                for field, value in ship.items():
-                    field_type = ship_fields[field].type if field in ship_fields else str
-                    cleaned = clean_value(value, field_type)
-                    if cleaned is not None:
-                        cleaned_ship[field] = cleaned
-                    # 对于未设置值的字段，后续补全逻辑会处理，这里不填 None
-                
-                # 改造日期处理
-                if not cleaned_ship.get("can_remodel", False) and "remodel_date" in cleaned_ship:
-                    cleaned_ship["remodel_date"] = ""
+                self._clean_ship_dict(ship)   # 注意：ship 是字典，会被原地修改
                 
                 # 分离数据
                 # 静态数据：复制所有字段，然后移除用户状态字段
-                static = cleaned_ship.copy()
+                static = ship.copy()
                 for field in self.USER_STATE_FIELDS:
                     static.pop(field, None)
                 static_ships.append(static)
 
                 # 用户状态：只保留 id 和状态字段
-                state = {"id": cleaned_ship["id"]}
+                state = {"id": ship["id"]}
                 for field in self.USER_STATE_FIELDS:
-                    if field in cleaned_ship:
-                        state[field] = cleaned_ship[field]
+                    if field in ship:
+                        state[field] = ship[field]
                 state_list.append(state)
 
             static_data = {"version": version, "ships": static_ships}
@@ -1385,3 +1354,128 @@ class ShipManager(QObject):
             os.makedirs(user_folder, exist_ok=True)
             return os.path.join(user_folder, "ships_state.json")
         return None
+    
+    def _clean_field_value(self, value, field_type):
+        """清洗单个字段的值，返回清洗后的值或 None（应使用默认值）"""
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.lower() in ("nan", "null", "none", "na", ""):
+                return None
+            if field_type == int:
+                try:
+                    return int(float(stripped))
+                except:
+                    return 0
+            elif field_type == bool:
+                return stripped.lower() in ("true", "1", "yes")
+            elif field_type == list:
+                # 尝试解析 JSON 数组
+                if stripped.startswith('[') and stripped.endswith(']'):
+                    try:
+                        import json
+                        parsed = json.loads(stripped)
+                        return parsed if isinstance(parsed, list) else []
+                    except:
+                        return []
+                return []
+            elif field_type == dict:
+                if stripped.startswith('{') and stripped.endswith('}'):
+                    try:
+                        import json
+                        parsed = json.loads(stripped)
+                        return parsed if isinstance(parsed, dict) else {}
+                    except:
+                        return {}
+                return {}
+            else:
+                return stripped
+        return value
+
+    def _clean_ship_dict(self, ship_dict):
+        """清洗单个舰船字典（原地修改）"""
+        for field, value in list(ship_dict.items()):
+            if field == 'id':
+                continue
+            field_info = Ship.__dataclass_fields__.get(field)
+            if field_info is None:
+                # 如果字段不在模型中，删除它
+                del ship_dict[field]
+                continue
+            field_type = field_info.type
+            cleaned = self._clean_field_value(value, field_type)
+            if cleaned is None:
+                # 设置默认值
+                if field_type == int:
+                    ship_dict[field] = 0
+                elif field_type == str:
+                    ship_dict[field] = ""
+                elif field_type == bool:
+                    ship_dict[field] = False
+                elif field_type == list:
+                    ship_dict[field] = []
+                elif field_type == dict:
+                    ship_dict[field] = {}
+                else:
+                    ship_dict[field] = None
+            else:
+                ship_dict[field] = cleaned
+        # 特殊联动：如果不可改造，清空改造日期
+        if not ship_dict.get("can_remodel", False):
+            ship_dict["remodel_date"] = ""
+        return ship_dict
+    
+    def _migrate_old_bonus(self, ship_dict):
+        """将旧的多个属性加成字段转换为单一属性加成（原地修改 ship 对象）"""
+        attr_map = [
+            ("耐久", "durability"),
+            ("炮击", "firepower"),
+            ("雷击", "torpedo"),
+            ("防空", "aa"),
+            ("航空", "aviation"),
+            ("命中", "accuracy"),
+            ("装填", "reload"),
+            ("机动", "mobility"),
+            ("反潜", "antisub")
+        ]
+        
+        # 获得时加成
+        if "obtain_bonus_attr" not in ship_dict or not ship_dict.get("obtain_bonus_attr"):
+            for attr_name, base in attr_map:
+                val = ship_dict.get(f"tech_{base}_obtain", 0)
+                if val != 0:
+                    ship_dict["obtain_bonus_attr"] = attr_name
+                    ship_dict["obtain_bonus_value"] = val
+                    break
+            else:
+                # 没有非零加成，设置空值
+                ship_dict.setdefault("obtain_bonus_attr", "")
+                ship_dict.setdefault("obtain_bonus_value", 0)
+
+        # 120级时加成
+        if "level120_bonus_attr" not in ship_dict or not ship_dict.get("level120_bonus_attr"):
+            for attr_name, base in attr_map:
+                val = ship_dict.get(f"tech_{base}_120", 0)
+                if val != 0:
+                    ship_dict["level120_bonus_attr"] = attr_name
+                    ship_dict["level120_bonus_value"] = val
+                    break
+            else:
+                ship_dict.setdefault("level120_bonus_attr", "")
+                ship_dict.setdefault("level120_bonus_value", 0)
+
+        # 适用舰种迁移（如果旧的 tech_affects 存在且新列表为空）
+        if (not ship_dict.get("obtain_affects") and 
+            "tech_affects" in ship_dict and ship_dict["tech_affects"]):
+            ship_dict["obtain_affects"] = ship_dict["tech_affects"].copy()
+        if (not ship_dict.get("level120_affects") and 
+            "tech_affects" in ship_dict and ship_dict["tech_affects"]):
+            ship_dict["level120_affects"] = ship_dict["tech_affects"].copy()
+
+        # 可选：删除旧字段，保持数据干净
+        for _, base in attr_map:
+            ship_dict.pop(f"tech_{base}_obtain", None)
+            ship_dict.pop(f"tech_{base}_max", None)
+            ship_dict.pop(f"tech_{base}_120", None)
+        ship_dict.pop("tech_affects", None)

@@ -9,6 +9,7 @@ class Ship:
     faction: str
     ship_class: str
     rarity: str
+    alt_name: str = ""
     game_order: int = 0
 
     # 状态信息
@@ -44,10 +45,20 @@ class Ship:
     tech_points_max: int = 0
     tech_points_120: int = 0
 
-    bonus_obtain: List[str] = field(default_factory=list)   # 获得时加成，例如 ["驱逐耐久+1", "轻巡炮击+1"]
-    bonus_120: List[str] = field(default_factory=list)      # 120级时加成，例如 ["驱逐耐久+1"]
-    
     tech_affects: List[str] = field(default_factory=list)  # 科技点适用舰种列表
+    obtain_affects: List[str] = field(default_factory=list)
+    level120_affects: List[str] = field(default_factory=list)
+    
+    # 获得时加成（单一属性）
+    obtain_bonus_attr: str = ""      # 属性名，如 "耐久"、"炮击"等
+    obtain_bonus_value: int = 0      # 加成数值
+    obtain_affects: List[str] = field(default_factory=list)   # 适用舰种列表
+
+    # 120级时加成（单一属性）
+    level120_bonus_attr: str = ""    # 属性名
+    level120_bonus_value: int = 0    # 加成数值
+    level120_affects: List[str] = field(default_factory=list)  # 适用舰种列表
+
     # 加成属性（每个属性三阶段：获得、满破、120级）
     tech_durability_obtain: int = 0
     tech_durability_max: int = 0
